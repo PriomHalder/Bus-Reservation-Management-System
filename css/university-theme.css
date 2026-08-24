@@ -1,0 +1,55 @@
+/*
+ * UniRide University Admin theme
+ * Mirrors the navy/white identity of the sign-in experience and is loaded
+ * after the structural dashboard styles by every UniAdmin page.
+ */
+.uni-admin-body{
+    --ud-bg:#f8fafc;
+    --ud-card:#ffffff;
+    --ud-soft:#eef4fb;
+    --ud-soft2:#e5edf6;
+    --ud-ink:#17191c;
+    --ud-muted:#707780;
+    --ud-muted2:#98a1ab;
+    --ud-line:#e3e8ee;
+    --ud-line2:#d5dee8;
+    --ud-blue:#184987;
+    --ud-blue-dark:#10376a;
+    --ud-good:#176536;
+    --ud-good-bg:#eef8f1;
+    --ud-warn:#8a5a00;
+    --ud-warn-bg:#fff8e8;
+    --ud-error:#a5241a;
+    --ud-error-bg:#fff1ef;
+    --ud-radius:15px;
+    --ud-sidebar:252px;
+    background:linear-gradient(180deg,#fff 0,#f8fbff 290px,#f8fafc 620px);
+    color:var(--ud-ink);
+    font-size:14px;
+}
+.uni-admin-body.sidebar-open{overflow:hidden}
+.uni-topbar{min-height:64px;padding:0 24px;border-color:var(--ud-line);background:rgba(255,255,255,.96);box-shadow:0 1px 0 rgba(16,55,106,.02);backdrop-filter:blur(16px)}
+.uni-topbar-left{gap:14px}.uni-brand{gap:9px}.uni-brand img{width:25px;height:25px}.uni-brand strong{font-size:15px;font-weight:850}.uni-brand em{color:var(--ud-blue);font-size:13px;font-weight:500}.uni-account{gap:15px}.uni-account-copy strong{font-size:12px}.uni-account-copy span{color:var(--ud-muted);font-size:11px}
+.signout-button{min-height:36px;padding:0 13px;border-color:#d9e2ec;border-radius:9px;color:var(--ud-blue);font-size:11px;background:#fff;transition:background .15s ease,border-color .15s ease,color .15s ease}.signout-button:hover{border-color:#bfd0e1;background:#f8fbff;color:var(--ud-blue-dark)}
+.sidebar-toggle{width:38px;height:38px;border-color:var(--ud-line);border-radius:9px;background:#fff;cursor:pointer}.sidebar-toggle>span:not(.sr-only){width:18px;height:2px;border-radius:99px;background:var(--ud-blue);transition:transform .16s ease}.sidebar-toggle.is-active>span:nth-of-type(2){transform:translateY(3px) rotate(45deg)}.sidebar-toggle.is-active>span:nth-of-type(3){transform:translateY(-3px) rotate(-45deg)}
+.dashboard-shell{grid-template-columns:var(--ud-sidebar) minmax(0,1fr)}
+.uni-sidebar{top:64px;height:calc(100vh - 64px);padding:23px 18px 30px;border-color:var(--ud-line);background:#fff}
+.uni-sidebar nav{gap:3px}.side-heading{margin:20px 10px 7px;color:#8a929c;font-size:10px;letter-spacing:.11em}.side-link{min-height:39px;padding:0 11px;border-radius:9px;color:#56606b;font-size:12px;font-weight:650;transition:background .15s ease,color .15s ease,transform .15s ease}.side-link-child{min-height:34px;margin-left:12px;padding-left:16px;border-left:1px solid #dce5ef;font-size:11px}a.side-link:hover{background:var(--ud-soft);color:var(--ud-blue);transform:translateX(2px)}.side-link.is-active{background:var(--ud-blue);color:#fff;font-weight:850;box-shadow:0 6px 16px rgba(24,73,135,.16)}.side-count{min-width:23px;padding:2px 6px;background:#edf1f5;color:#69737e;font-size:9px}.side-link.is-active .side-count{background:rgba(255,255,255,.17)}.side-divider{margin:23px 0 10px;border-color:var(--ud-line);background:var(--ud-line)}
+.uni-main{padding:42px clamp(22px,4vw,60px) 90px}.dashboard-title-row{margin-bottom:30px}.dashboard-kicker{margin-bottom:9px;color:var(--ud-blue);font-size:10px;letter-spacing:.11em}.dashboard-title-row h1{font-size:clamp(42px,4.7vw,66px)}.dashboard-title-row h1 span{color:var(--ud-blue);font-style:italic}.dashboard-meta{margin-top:12px;color:var(--ud-muted);font-size:11px}
+.primary-action,.secondary-action,.empty-action,.small-dark-button,.up-button,.up-button-secondary{min-height:38px;padding:0 13px;border-radius:9px;font-size:11px;transition:background .15s ease,border-color .15s ease,transform .15s ease,box-shadow .15s ease}.primary-action,.small-dark-button,.up-button{border-color:var(--ud-blue);background:var(--ud-blue);color:#fff}.primary-action:hover,.small-dark-button:hover,.up-button:hover{border-color:var(--ud-blue-dark);background:var(--ud-blue-dark);box-shadow:0 7px 18px rgba(24,73,135,.17);transform:translateY(-1px)}.secondary-action,.empty-action,.up-button-secondary{border-color:#d7e0ea;background:#fff;color:var(--ud-blue)}.secondary-action:hover,.empty-action:hover,.up-button-secondary:hover{border-color:#bfd0e1;background:#f8fbff;color:var(--ud-blue-dark)}
+.metric-grid{gap:13px;margin-bottom:28px}.metric-card{min-height:145px;padding:20px;border-color:var(--ud-line);border-radius:var(--ud-radius);box-shadow:0 10px 30px rgba(16,55,106,.045);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}.metric-card:hover{transform:translateY(-2px);border-color:#cfdae6;box-shadow:0 14px 36px rgba(16,55,106,.08)}.metric-card p{margin-bottom:17px;color:var(--ud-blue);font-size:9px}.metric-card strong{font-size:34px}.metric-card>span{margin-top:12px;font-size:11px}
+.dashboard-section,.attention-panel{margin-top:28px}.section-heading-row{min-height:52px;margin-bottom:14px}.section-heading-row h2{font-size:25px}.section-heading-row p:not(.dashboard-kicker){font-size:11px}.text-action{color:var(--ud-blue);font-size:10px}.attention-panel,.compact-list,.complaint-list,.transfer-list,.route-util-list,.stop-card,.table-wrap{border-color:var(--ud-line);background:#fff;box-shadow:0 8px 26px rgba(16,55,106,.035)}
+.attention-panel{background:#fff}.attention-item p,.compact-empty p,.panel-inline-empty{font-size:11px}.attention-clear strong,.compact-empty strong{font-size:12px}
+.date-chip{min-height:35px;padding:0 11px;border-color:var(--ud-line);font-size:10px}.date-chip:hover{border-color:#bfd0e1;color:var(--ud-blue)}.date-chip.is-active{border-color:var(--ud-blue);background:var(--ud-blue)}
+.ops-table th{padding:12px 13px;color:#7d8792;font-size:9px}.ops-table td{padding:14px 13px;color:#46505a;font-size:11px}.ops-table td strong{font-size:11px}.ops-table td small{font-size:10px}.occupancy-track span,.route-util-bar span{background:var(--ud-blue)}.status-pill{min-height:25px;padding:0 8px;font-size:9px}
+.booking-row,.transfer-row{min-height:70px;padding:12px 14px}.booking-main strong,.booking-route strong,.booking-slot strong,.transfer-row strong{font-size:11px}.booking-main span,.booking-route span,.booking-slot span,.transfer-row span:not(.status-pill){font-size:10px}.complaint-item summary{min-height:72px;padding:12px 14px}.complaint-item summary strong{font-size:11px}.complaint-item summary span:not(.status-pill),.route-util-title span,.route-util-meta,.stop-card>div:first-child span,.stop-card li,.stop-empty,.mini-metrics span,.billing-summary span{font-size:10px}
+.dashboard-alert{padding:13px 15px;border-radius:10px;font-size:12px}.mini-metrics>div,.billing-summary>div{border-color:var(--ud-line);background:#fff}.mini-metrics strong,.billing-summary strong{font-size:24px}
+
+/* University Admin subpages */
+.university-page-body{--up-blue:var(--ud-blue);--up-line:var(--ud-line);--up-soft:#f8fbff;--up-muted:var(--ud-muted)}
+.university-page-heading{margin-bottom:30px}.university-page-heading h1{font-size:clamp(42px,4.7vw,64px)}.university-page-heading>div>p:not(.dashboard-kicker){margin-top:11px;color:var(--ud-muted);font-size:13px}.university-page-meta{margin-top:11px;color:var(--ud-muted);font-size:10px}.university-page-footer{margin-top:44px;padding-top:20px;border-color:var(--ud-line);font-size:10px}
+.up-card{padding:21px;border-color:var(--ud-line);border-radius:14px;box-shadow:0 10px 30px rgba(16,55,106,.04)}.up-card.blue{border-color:#d4e0ec;background:#f8fbff}.up-note{padding:16px;border-color:#d4e0ec;border-radius:11px;background:#f8fbff;color:#56616d;font-size:11px}.up-filter,.up-form-grid{gap:13px}.up-field{gap:7px}.up-field span{color:#59636e;font-size:10px}.up-field input,.up-field select,.up-field textarea,.up-filter input,.up-filter select{min-height:43px;border-color:#d8e1ea;border-radius:9px;padding:9px 11px;font-size:12px}.up-field textarea{min-height:112px}.up-tabs{gap:7px;margin-bottom:15px}.up-tab{min-height:35px;padding:0 11px;border-color:var(--ud-line);font-size:10px}.up-tab:hover{border-color:#bfd0e1;color:var(--ud-blue)}.up-tab.active{border-color:var(--ud-blue);background:var(--ud-blue)}
+.up-empty{min-height:92px;padding:18px;border-color:#cbd8e5;background:#fbfdff}.up-empty strong{font-size:12px}.up-empty p{font-size:10px}.up-table-wrap{border-color:var(--ud-line);border-radius:12px;box-shadow:0 8px 26px rgba(16,55,106,.035)}.up-table th{padding:12px 13px;color:#7d8792;font-size:9px}.up-table td{padding:14px 13px;color:#46505a;font-size:11px}.up-table td strong{font-size:11px}.up-table td small{font-size:10px}.up-status{min-height:25px;padding:0 8px;font-size:9px}.up-stop-grid{gap:13px}.up-stop-card{padding:17px;border-color:var(--ud-line);border-radius:12px;box-shadow:0 8px 26px rgba(16,55,106,.035)}.up-stop-card h3{color:var(--ud-blue);font-size:20px}.up-stop-card p,.up-stop-card li{font-size:10px}.up-stop-card li b{background:var(--ud-soft);color:var(--ud-blue)}
+.uni-admin-body :focus-visible{outline:3px solid rgba(24,73,135,.38);outline-offset:3px}
+@media(max-width:920px){.uni-topbar{padding-inline:14px}.uni-sidebar{top:64px;height:calc(100vh - 64px);box-shadow:22px 0 48px rgba(16,55,106,.18)}.sidebar-scrim{inset:64px 0 0;background:rgba(10,28,52,.42)}.uni-main{padding:32px 18px 72px}}
+@media(max-width:640px){.uni-main{padding-inline:14px}.dashboard-title-row h1,.university-page-heading h1{font-size:42px}.metric-card{min-height:126px}.up-card{padding:17px}}

@@ -5,6 +5,7 @@ session_start();
 
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/profile/password-security.php';
 
 $type = strtoupper((string)($_POST['account_type'] ?? $_GET['type'] ?? ''));
 $token = (string)($_POST['token'] ?? $_GET['token'] ?? '');
@@ -23,8 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
 
     if (!verifyCsrf((string)($_POST['csrf_token'] ?? ''))) {
         $error = 'Your session expired. Refresh and try again.';
-    } elseif (strlen($password) < 8) {
-        $error = 'Use at least 8 characters.';
+    } elseif (!profile_password_is_strong($password)) {
+        $error = 'Use 8–128 characters with uppercase, lowercase, a number and a special character.';
     } elseif ($password !== $confirm) {
         $error = 'Passwords do not match.';
     } else {
@@ -86,6 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
 
                 $pdo->commit();
 
+                profile_revoke_all_sessions_for_user($pdo, $type, $accountId);
+                profile_log_event($pdo, $type, $accountId, 'PASSWORD_RESET', 'The password was reset through account recovery and active sessions were revoked.');
+
                 header('Location: signin.php?reset=success');
                 exit;
             }
@@ -106,10 +110,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>New password — UniRide</title>
+    <?= uniride_theme_head_html('.') ?>
 
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/uniride-ui.css">
 </head>
-<body class="auth-page">
+<body class="auth-page auth-current-theme">
 
 <main class="auth-layout container">
     <section class="auth-copy">
@@ -121,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
     <section class="login-card">
         <div class="login-title">
             <h2>New password</h2>
-            <p>Use at least 8 characters.</p>
+            <p>Use 8+ characters with uppercase, lowercase, a number and a special character.</p>
         </div>
 
         <?php if ($error): ?>

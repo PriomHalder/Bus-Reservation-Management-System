@@ -1,0 +1,31 @@
+-- =====================================================================
+-- RETIRED — do not run this file
+-- =====================================================================
+-- The integrity constraints that used to live here are now part of
+-- database/migrations/000_repair_existing_keys.sql, which applies them in
+-- the correct order and guards each statement so a re-run is harmless.
+--
+-- Two constraints from this file were deliberately dropped rather than
+-- moved, because the shipped data cannot satisfy them:
+--
+--   * UNIQUE (bus_id, schedule_date, departure_time) on schedules.
+--     Bus 1 already appears twice on 2026-08-20 at 17:20 in uniride2.sql.
+--     Adding the unique key would abort the import, so migration 000 adds
+--     a plain KEY idx_bus_departure instead and the double-booking is
+--     reported by tools/schema_check.php.
+--
+--   * NOT NULL on semester_bills.university_id.
+--     sp_create_booking inserts a bill row without that column, so the
+--     column stays nullable and trg_semester_bills_set_university fills it
+--     in. Forcing NOT NULL would break booking.
+--
+-- Run instead, in this order:
+--   1. database/migrations/000_repair_existing_keys.sql
+--   2. database/migrations/001_add_missing_dashboard_tables.sql
+--   3. database/seeds/002_dashboard_demo_data.sql   (optional demo data)
+--
+-- Then open tools/schema_check.php as a system admin to confirm every key,
+-- foreign key and routine is in place. It is safe to delete this file.
+-- =====================================================================
+
+SELECT 'Retired. See database/migrations/000_repair_existing_keys.sql.' AS `notice`;

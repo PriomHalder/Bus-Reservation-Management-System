@@ -3,35 +3,19 @@ declare(strict_types=1);
 
 session_start();
 
-$routes = [];
+require_once __DIR__ . '/includes/theme.php';
+
 $stats = [
     'universities' => 0,
     'routes' => 0,
     'students' => 0,
     'faculty' => 0,
 ];
+$universities = [];
 $dbError = '';
 
 try {
     require_once __DIR__ . '/config/database.php';
-
-    $routes = $pdo->query(
-        "SELECT
-            r.route_id,
-            r.route_code,
-            r.route_name,
-            r.start_location,
-            r.end_location,
-            r.fare,
-            u.code AS university_code,
-            u.name AS university_name
-         FROM routes r
-         JOIN universities u
-           ON u.university_id = r.university_id
-         WHERE r.status = 'ACTIVE'
-           AND u.status = 'ACTIVE'
-         ORDER BY u.university_id, r.route_id"
-    )->fetchAll();
 
     $stats['universities'] = (int)$pdo->query(
         "SELECT COUNT(*) FROM universities WHERE status='ACTIVE'"
@@ -50,6 +34,13 @@ try {
         "SELECT COUNT(*) FROM passengers
          WHERE passenger_type='FACULTY' AND status='ACTIVE'"
     )->fetchColumn();
+
+    $universities = $pdo->query(
+        "SELECT university_id, name, code
+         FROM universities
+         WHERE status='ACTIVE'
+         ORDER BY name"
+    )->fetchAll();
 } catch (Throwable $e) {
     error_log('[UniRide index] ' . $e->getMessage());
     $dbError = 'Could not load database content.';
@@ -61,13 +52,298 @@ try {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UniRide — University Bus Ticketing</title>
+    <?= uniride_theme_head_html('.') ?>
     <meta name="description" content="UniRide university bus ticket booking platform.">
 
     <link rel="icon" href="img/logo.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        /* ================================================================
+           UniRide public homepage — current navy / white theme
+           Scoped to body.home-current-theme so no dashboard is affected.
+           ================================================================ */
+        body.home-current-theme {
+            --ur-blue: #184987;
+            --ur-blue-dark: #10376a;
+            --ur-blue-soft: #eef4fb;
+            --ur-blue-pale: #f8fbff;
+            --ur-ink: #17191c;
+            --ur-muted: #707780;
+            --ur-line: #e3e8ee;
+            --ur-white: #ffffff;
+            margin: 0;
+            background: var(--ur-white);
+            color: var(--ur-ink);
+        }
+
+        .home-current-theme .topbar {
+            background: rgba(255,255,255,.96);
+            border-bottom: 1px solid var(--ur-line);
+            backdrop-filter: blur(16px);
+        }
+
+        .home-current-theme .brand {
+            color: var(--ur-ink);
+        }
+
+        .home-current-theme .brand img {
+            width: 25px;
+            height: 25px;
+        }
+
+        .home-current-theme .brand span {
+            font-weight: 850;
+            letter-spacing: -.035em;
+        }
+
+        .home-current-theme .main-nav a,
+        .home-current-theme .link-btn {
+            color: #555d66;
+            transition: color .15s ease, background .15s ease;
+        }
+
+        .home-current-theme .main-nav a:hover,
+        .home-current-theme .link-btn:hover {
+            color: var(--ur-blue);
+        }
+
+        .home-current-theme .button-light {
+            border-color: #dce3eb;
+            background: #fff;
+            color: var(--ur-blue);
+        }
+
+        .home-current-theme .button-light:hover {
+            border-color: #c5d4e4;
+            background: var(--ur-blue-pale);
+        }
+
+        .home-current-theme .button-dark {
+            border-color: var(--ur-blue);
+            background: var(--ur-blue);
+            color: #fff;
+        }
+
+        .home-current-theme .button-dark:hover {
+            border-color: var(--ur-blue-dark);
+            background: var(--ur-blue-dark);
+        }
+
+        .home-current-theme .hero {
+            min-height: 720px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-top: 116px;
+            padding-bottom: 86px;
+            text-align: center;
+        }
+
+        .home-current-theme .hero .kicker {
+            margin-bottom: 18px;
+            color: var(--ur-blue);
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .11em;
+        }
+
+        .home-current-theme .hero h1 {
+            max-width: 920px;
+            margin-inline: auto;
+            color: var(--ur-ink);
+            font-size: clamp(72px, 7.1vw, 112px);
+            line-height: .88;
+            letter-spacing: -.065em;
+        }
+
+        .home-current-theme .hero h1 em {
+            color: var(--ur-blue);
+            font-weight: inherit;
+        }
+
+        .home-current-theme .hero-text {
+            max-width: 780px;
+            margin-top: 38px;
+            color: var(--ur-muted);
+            font-size: 17px;
+            line-height: 1.6;
+        }
+
+        .home-current-theme .stats {
+            width: min(880px, 100%);
+            margin-top: 70px;
+            padding-top: 34px;
+            border-top: 1px solid var(--ur-line);
+        }
+
+        .home-current-theme .stats > div {
+            position: relative;
+        }
+
+        .home-current-theme .stats strong {
+            color: var(--ur-blue);
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 32px;
+            font-weight: 500;
+        }
+
+        .home-current-theme .stats span {
+            color: #7a8189;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .home-current-theme .empty-card {
+            width: min(880px, 100%);
+            margin-top: 20px;
+            border-color: #d8e2ed;
+            background: var(--ur-blue-pale);
+        }
+
+        .home-current-theme .section {
+            padding-top: 88px;
+            padding-bottom: 88px;
+        }
+
+        .home-current-theme .section-head {
+            margin-bottom: 28px;
+        }
+
+        .home-current-theme .title-with-count h2 {
+            color: var(--ur-ink);
+        }
+
+        .home-current-theme .title-with-count span,
+        .home-current-theme .section-head p,
+        .home-current-theme .universities .kicker {
+            color: var(--ur-blue);
+        }
+
+        .home-current-theme .feature-card {
+            border-color: var(--ur-line);
+            background: #fff;
+            box-shadow: 0 8px 28px rgba(16,55,106,.035);
+            transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+        }
+
+        .home-current-theme .feature-card:hover {
+            transform: translateY(-2px);
+            border-color: #cfdbe8;
+            box-shadow: 0 12px 34px rgba(16,55,106,.07);
+        }
+
+        .home-current-theme .feature-art {
+            background: #f4f7fa;
+        }
+
+        .home-current-theme .feature-art.qr,
+        .home-current-theme .feature-art.notification,
+        .home-current-theme .feature-art.bill strong {
+            color: var(--ur-blue);
+        }
+
+        .home-current-theme .feature-art.seats i.selected {
+            background: var(--ur-blue);
+            border-color: var(--ur-blue);
+        }
+
+        .home-current-theme .feature-art.transfer b {
+            border-color: #cedae7;
+            background: #fff;
+            color: var(--ur-blue);
+        }
+
+        .home-current-theme .feature-copy small {
+            color: var(--ur-blue);
+        }
+
+        .home-current-theme .feature-copy h3 {
+            color: var(--ur-ink);
+        }
+
+        .home-current-theme .feature-copy p {
+            color: var(--ur-muted);
+        }
+
+        .home-current-theme .universities {
+            padding-top: 46px;
+        }
+
+        .home-current-theme .university-row {
+            border-top-color: var(--ur-line);
+            border-bottom-color: var(--ur-line);
+        }
+
+        .home-current-theme .university-row span {
+            color: var(--ur-ink);
+        }
+
+        .home-current-theme footer {
+            border-top: 1px solid var(--ur-line);
+            background: #fbfdff;
+        }
+
+        .home-current-theme footer p {
+            color: #899099;
+        }
+
+        .home-current-theme .menu-btn span {
+            background: var(--ur-blue);
+        }
+
+        @media (max-width: 900px) {
+            .home-current-theme .hero {
+                min-height: auto;
+                padding-top: 140px;
+                padding-bottom: 70px;
+            }
+
+            .home-current-theme .hero h1 {
+                font-size: clamp(58px, 12vw, 86px);
+            }
+
+            .home-current-theme .stats {
+                margin-top: 52px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .home-current-theme .hero {
+                align-items: flex-start;
+                text-align: left;
+            }
+
+            .home-current-theme .hero h1,
+            .home-current-theme .hero-text {
+                margin-inline: 0;
+            }
+
+            .home-current-theme .hero h1 {
+                font-size: clamp(52px, 15vw, 74px);
+            }
+
+            .home-current-theme .hero-text {
+                font-size: 15px;
+            }
+
+            .home-current-theme .stats {
+                width: 100%;
+            }
+
+            .home-current-theme .stats strong {
+                font-size: 28px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="css/uniride-ui.css">
+
     <script src="js/app.js" defer></script>
 </head>
-<body>
+<body class="home-current-theme">
 
 <header class="topbar">
     <div class="container nav">
@@ -77,7 +353,6 @@ try {
         </a>
 
         <nav class="main-nav" id="mainNav">
-            <a href="#routes">Routes</a>
             <a href="#features">Features</a>
             <a href="#universities">Universities</a>
         </nav>
@@ -107,28 +382,9 @@ try {
         </h1>
 
         <p class="hero-text">
-            Search university bus routes, check schedules, book seats,
-            manage tickets, and keep semester transport charges in one place.
+            A unified university transport platform for schedules, ticket booking,
+            seat management, notifications, complaints, transfers and semester billing.
         </p>
-
-        <div class="search-area">
-            <label class="search-box">
-                <span aria-hidden="true">⌕</span>
-                <input
-                    type="search"
-                    id="routeSearch"
-                    placeholder="Search route, area, or university"
-                    autocomplete="off"
-                >
-            </label>
-
-            <div class="filters">
-                <button type="button" class="filter active" data-filter="all">All</button>
-                <button type="button" class="filter" data-filter="bracu">BRACU</button>
-                <button type="button" class="filter" data-filter="nsu">NSU</button>
-                <button type="button" class="filter" data-filter="aiub">AIUB</button>
-            </div>
-        </div>
 
         <div class="stats">
             <div>
@@ -148,76 +404,11 @@ try {
                 <span>Faculty</span>
             </div>
         </div>
-    </section>
-
-    <section class="section container" id="routes">
-        <div class="section-head">
-            <div>
-                <div class="title-with-count">
-                    <h2>Routes</h2>
-                    <span><?= count($routes) ?></span>
-                </div>
-                <p>Route information is loaded directly from the <strong>uniride2</strong> database.</p>
-            </div>
-        </div>
 
         <?php if ($dbError): ?>
             <div class="empty-card">
                 <strong>Database unavailable</strong>
                 <p><?= htmlspecialchars($dbError, ENT_QUOTES, 'UTF-8') ?></p>
-            </div>
-        <?php elseif (!$routes): ?>
-            <div class="empty-card">
-                <strong>No active routes found</strong>
-                <p>Add route records through your database or admin panel.</p>
-            </div>
-        <?php else: ?>
-            <div class="route-grid">
-                <?php foreach ($routes as $i => $route): ?>
-                    <?php
-                    $searchText = strtolower(
-                        $route['route_code'] . ' ' .
-                        $route['route_name'] . ' ' .
-                        $route['start_location'] . ' ' .
-                        $route['end_location'] . ' ' .
-                        $route['university_code'] . ' ' .
-                        $route['university_name']
-                    );
-                    ?>
-                    <article
-                        class="route-card <?= $i === 1 ? 'dark-card' : '' ?>"
-                        data-route-card
-                        data-university="<?= htmlspecialchars(strtolower($route['university_code']), ENT_QUOTES, 'UTF-8') ?>"
-                        data-search="<?= htmlspecialchars($searchText, ENT_QUOTES, 'UTF-8') ?>"
-                    >
-                        <div class="card-top">
-                            <span class="badge"><?= htmlspecialchars($route['university_code'], ENT_QUOTES, 'UTF-8') ?></span>
-                            <span class="fare">৳<?= number_format((float)$route['fare'], 0) ?></span>
-                        </div>
-
-                        <div class="route-graphic">
-                            <span class="route-point"></span>
-                            <span class="route-line"></span>
-                            <span class="bus-icon">▣</span>
-                            <span class="route-line"></span>
-                            <span class="route-point filled"></span>
-                        </div>
-
-                        <p class="route-code"><?= htmlspecialchars($route['route_code'], ENT_QUOTES, 'UTF-8') ?></p>
-                        <h3><?= htmlspecialchars($route['route_name'], ENT_QUOTES, 'UTF-8') ?></h3>
-
-                        <div class="route-path">
-                            <span><?= htmlspecialchars($route['start_location'], ENT_QUOTES, 'UTF-8') ?></span>
-                            <b>→</b>
-                            <span><?= htmlspecialchars($route['end_location'], ENT_QUOTES, 'UTF-8') ?></span>
-                        </div>
-
-                        <div class="card-footer">
-                            <span><?= htmlspecialchars($route['university_name'], ENT_QUOTES, 'UTF-8') ?></span>
-                            <a href="signin.php">View / Book ↗</a>
-                        </div>
-                    </article>
-                <?php endforeach; ?>
             </div>
         <?php endif; ?>
     </section>
@@ -290,9 +481,15 @@ try {
     <section class="section container universities" id="universities">
         <p class="kicker">Participating universities</p>
         <div class="university-row">
-            <span>BRAC University</span>
-            <span>North South University</span>
-            <span>AIUB</span>
+            <?php if ($universities): ?>
+                <?php foreach ($universities as $university): ?>
+                    <span>
+                        <?= htmlspecialchars((string)$university['name'], ENT_QUOTES, 'UTF-8') ?>
+                    </span>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <span>No active university is available yet.</span>
+            <?php endif; ?>
         </div>
     </section>
 </main>

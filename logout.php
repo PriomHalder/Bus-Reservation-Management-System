@@ -3,6 +3,17 @@ declare(strict_types=1);
 
 session_start();
 
+try {
+    $UNI_DB_OPTIONAL = true;
+    require_once __DIR__ . '/config/database.php';
+    if ($pdo instanceof PDO) {
+        require_once __DIR__ . '/includes/profile/session-management.php';
+        profile_revoke_current_session($pdo);
+    }
+} catch (Throwable $e) {
+    error_log('[UniRide logout audit] ' . $e->getMessage());
+}
+
 $_SESSION = [];
 
 if (ini_get('session.use_cookies')) {

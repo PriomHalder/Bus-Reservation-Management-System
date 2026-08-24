@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once dirname(__DIR__) . '/includes/theme.php';
+
 /*
 |--------------------------------------------------------------------------
 | UniRide2 MySQL Connection
@@ -33,8 +35,13 @@ try {
 } catch (PDOException $e) {
     error_log('[UniRide DB] ' . $e->getMessage());
 
+    if (!empty($UNI_DB_OPTIONAL)) {
+        $pdo = null;
+        return;
+    }
+
     http_response_code(500);
-    exit(
+    uniride_render_error_page(
         'Database connection failed. Start MySQL in XAMPP and confirm ' .
         'that phpMyAdmin contains the database "uniride2".'
     );
