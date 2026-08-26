@@ -16,6 +16,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/dashboard/nav.php';
+require_once __DIR__ . '/../includes/booking-service.php';
 require_once __DIR__ . '/../includes/profile/session-management.php';
 require_once __DIR__ . '/../includes/theme.php';
 

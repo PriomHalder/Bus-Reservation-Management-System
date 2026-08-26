@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_page_shell.php';
+require_once __DIR__ . '/../includes/auth.php';
 
 $message = '';
 $messageType = '';
@@ -13,22 +14,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $slotType = strtoupper(trim((string)($_POST['slot_type'] ?? 'SEAT')));
     $slotNumber = (int)($_POST['slot_number'] ?? 0);
 
-    if ($scheduleId <= 0 || $slotNumber <= 0 || !in_array($slotType, ['SEAT', 'STANDING'], true)) {
+    if (!verifyCsrf((string)($_POST['csrf_token'] ?? ''))) {
+        $message = 'Your session expired. Refresh the page and try again.';
+        $messageType = 'error';
+    } elseif ($scheduleId <= 0 || $slotNumber <= 0 || !in_array($slotType, ['SEAT', 'STANDING'], true)) {
         $message = 'Invalid booking parameters provided or no seat selected.';
         $messageType = 'error';
     } else {
         try {
-            $stmt = $pdo->prepare("CALL sp_create_booking(?, ?, ?, ?)");
-            $stmt->execute([$ppPassengerId, $scheduleId, $slotType, $slotNumber]);
-            $confirmedBooking = $stmt->fetch(PDO::FETCH_ASSOC);
-            $stmt->closeCursor();
-
-            if ($confirmedBooking) {
-                $message = 'Booking confirmed successfully!';
-                $messageType = 'success';
-            }
-        } catch (PDOException $e) {
+            $confirmedBooking = uniride_create_booking(
+                $pdo,
+                $ppPassengerId,
+                $scheduleId,
+                $slotType,
+                $slotNumber
+            );
+            $message = 'Booking confirmed successfully!';
+            $messageType = 'success';
+        } catch (RuntimeException $e) {
             $message = 'Booking failed: ' . $e->getMessage();
+            $messageType = 'error';
+        } catch (Throwable $e) {
+            error_log('[UniRide create booking] ' . $e->getMessage());
+            $message = 'Booking failed. Please reload the schedule and try again.';
             $messageType = 'error';
         }
     }
@@ -54,14 +62,24 @@ try {
             b.standing_capacity
          FROM schedules s
          INNER JOIN routes r ON r.route_id = s.route_id
-         LEFT JOIN buses b ON b.bus_id = s.bus_id
+         INNER JOIN buses b ON b.bus_id = s.bus_id
          WHERE r.university_id = ?
-           AND s.status IN ('SCHEDULED', 'ACTIVE')
+           AND r.status = 'ACTIVE'
+           AND b.status = 'ACTIVE'
+           AND s.status = 'SCHEDULED'
            AND s.schedule_date >= CURDATE()
-         GROUP BY s.schedule_id
+           AND (
+                b.bus_type = 'STANDARD'
+                OR (? = 'STUDENT' AND b.bus_type = 'STUDENT_ONLY')
+                OR (? = 'FACULTY' AND b.bus_type = 'FACULTY_ONLY')
+           )
          ORDER BY s.schedule_date ASC, s.departure_time ASC"
     );
-    $stmt->execute([$ppUniversityId]);
+    $stmt->execute([
+        $ppUniversityId,
+        (string)$ppProfile['passenger_type'],
+        (string)$ppProfile['passenger_type'],
+    ]);
     $schedules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log('[book_ticket.php] ' . $e->getMessage());
@@ -217,7 +235,7 @@ pp_render_start(
         <div style="font-size:12px; line-height:1.6; color:#0f172a;">
             <strong>Reference:</strong> <?= pp_h($confirmedBooking['booking_reference']) ?><br>
             <strong>Slot:</strong> <?= pp_h($confirmedBooking['slot_type']) ?> #<?= pp_h((string)($confirmedBooking['seat_number'] ?? $confirmedBooking['standing_slot'])) ?><br>
-            <strong>Fare Charged:</strong> BDT <?= pp_h((string)$confirmedBooking['fare_charged']) ?>
+            <strong>Fare Charged:</strong> BDT <?= pp_h(number_format((float)$confirmedBooking['fare_charged'], 2)) ?>
         </div>
 
         <a class="pp-primary-button" href="my-bookings.php" style="margin-top:16px; display:inline-flex;">
@@ -247,6 +265,7 @@ pp_render_start(
 
 <?php if ($currentSchedule): ?>
 <form method="POST" action="">
+    <input type="hidden" name="csrf_token" value="<?= pp_h(csrfToken()) ?>">
     <input type="hidden" name="action" value="book">
     <input type="hidden" name="schedule_id" value="<?= $currentSchedule['schedule_id'] ?>">
     <input type="hidden" name="slot_type" value="<?= $allSeatsFilled ? 'STANDING' : 'SEAT' ?>">
@@ -274,7 +293,7 @@ pp_render_start(
                     </div>
                     <div class="route-stat">
                         <label>Fare</label>
-                        <span>BDT <?= pp_h((string)$currentSchedule['fare']) ?></span>
+                        <span>BDT <?= pp_h(number_format(uniride_ticket_fare(), 2)) ?></span>
                     </div>
                 </div>
             </div>
@@ -365,7 +384,7 @@ pp_render_start(
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="color:#64748b; font-weight:600;">Total Fare:</span>
-                        <strong style="font-size:15px; color:#0f172a; font-weight:800;">BDT <?= pp_h((string)$currentSchedule['fare']) ?></strong>
+                        <strong style="font-size:15px; color:#0f172a; font-weight:800;">BDT <?= pp_h(number_format(uniride_ticket_fare(), 2)) ?></strong>
                     </div>
                 </div>
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/dashboard/nav.php';
+require_once __DIR__ . '/../includes/booking-service.php';
 require_once __DIR__ . '/../includes/profile/session-management.php';
 require_once __DIR__ . '/../includes/theme.php';
 
@@ -599,7 +600,7 @@ $openComplaintCount=(int)$complaintStats['open_total'];
 $metrics=[
  ['Registered passengers',$passengerCount,number_format((int)$passengerStats['students']).' students · '.number_format((int)$passengerStats['faculty']).' faculty'],
  ['Fleet in service',(int)$fleetStats['active_buses'],'of '.number_format((int)$fleetStats['total_buses']).' buses · '.number_format((int)$fleetStats['seat_capacity']).' seats · '.number_format((int)$fleetStats['standing_capacity']).' standing'],
- ['Active routes',(int)$routeStats['active_routes'],'avg fare ৳'.number_format((float)$routeStats['average_fare'],0)],
+ ['Active routes',(int)$routeStats['active_routes'],'avg fare ৳'.number_format(uniride_ticket_fare(),0)],
  ['Departures '.strtolower($dateContext),(int)$departureStats['departures'],$departureStats['next_departure']?'first departure '.timeLabel($departureStats['next_departure']):'Nothing scheduled for this date'],
  ['Bookings '.strtolower($dateContext),(int)$bookingStats['bookings'],'across '.number_format((int)$bookingStats['trips_with_bookings']).' trips'],
  ['Seat occupancy',$seatOccupancy.'%',number_format((int)$loadStats['booked_seats']).' / '.number_format((int)$capacityStats['seat_capacity']).' seats booked'],
@@ -667,7 +668,7 @@ foreach($metrics as [$label,$value,$detail]): ?>
 
 <article class="dashboard-section"><div class="section-heading-row"><div><p class="dashboard-kicker">Demand</p><h2>Route utilisation</h2><p><?= uh($semesterName) ?> · all recorded trips</p></div><?= actionLink('routes.php','Manage') ?></div>
 <?php if(!$routeUtilisation): ?><div class="compact-empty compact-empty-small"><div><strong>No routes available.</strong><p>Active route performance will appear here.</p></div></div>
-<?php else: ?><div class="route-util-list"><?php foreach($routeUtilisation as $r): $ro=percentValue((int)$r['seated_booking_count'],(int)$r['seat_capacity_offered']); ?><div class="route-util-row"><div class="route-util-title"><strong><?= uh($r['route_code']) ?></strong><span><?= uh($r['route_name']) ?></span></div><div class="route-util-bar"><span style="width:<?= min(100,$ro) ?>%"></span></div><div class="route-util-meta"><span><?= (int)$r['trip_count'] ?> trips</span><span><?= (int)$r['booking_count'] ?> bookings</span><span><?= $ro ?>% avg seat use</span><span>৳<?= number_format((float)$r['fare'],0) ?></span></div></div><?php endforeach; ?></div><?php endif; ?>
+<?php else: ?><div class="route-util-list"><?php foreach($routeUtilisation as $r): $ro=percentValue((int)$r['seated_booking_count'],(int)$r['seat_capacity_offered']); ?><div class="route-util-row"><div class="route-util-title"><strong><?= uh($r['route_code']) ?></strong><span><?= uh($r['route_name']) ?></span></div><div class="route-util-bar"><span style="width:<?= min(100,$ro) ?>%"></span></div><div class="route-util-meta"><span><?= (int)$r['trip_count'] ?> trips</span><span><?= (int)$r['booking_count'] ?> bookings</span><span><?= $ro ?>% avg seat use</span><span>৳<?= number_format(uniride_ticket_fare(),0) ?></span></div></div><?php endforeach; ?></div><?php endif; ?>
 </article>
 </section>
 

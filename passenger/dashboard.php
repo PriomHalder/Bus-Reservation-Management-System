@@ -5,6 +5,7 @@ session_start();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/dashboard/nav.php';
+require_once __DIR__ . '/../includes/booking-service.php';
 require_once __DIR__ . '/../includes/profile/session-management.php';
 require_once __DIR__ . '/../includes/theme.php';
 
@@ -1707,7 +1708,7 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
                         <article class="ride-card">
                             <div class="ride-card-top">
                                 <span class="route-badge"><?= pd_h($ride['route_code']) ?></span>
-                                <span class="fare">৳<?= number_format((float)$ride['fare'], 0) ?></span>
+                                <span class="fare">৳<?= number_format(uniride_ticket_fare(), 0) ?></span>
                             </div>
                             <h3><?= pd_h($ride['route_name']) ?></h3>
                             <div class="mini-route">
@@ -1759,7 +1760,7 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
                         <article class="favorite-card">
                             <div class="favorite-card-top">
                                 <span class="route-badge"><?= pd_h($route['route_code']) ?></span>
-                                <span class="fare">৳<?= number_format((float)$route['fare'], 0) ?></span>
+                                <span class="fare">৳<?= number_format(uniride_ticket_fare(), 0) ?></span>
                             </div>
                             <h3><?= pd_h($route['route_name']) ?></h3>
                             <div class="mini-route">

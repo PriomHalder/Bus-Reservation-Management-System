@@ -34,13 +34,29 @@ try {
             ) AS booked_count
         FROM routes r
         LEFT JOIN schedules s ON s.route_id = r.route_id 
-            AND s.status IN ('SCHEDULED', 'ACTIVE')
+            AND s.status = 'SCHEDULED'
             AND s.schedule_date >= CURDATE()
+            AND EXISTS (
+                SELECT 1
+                FROM buses eligible_bus
+                WHERE eligible_bus.bus_id=s.bus_id
+                  AND eligible_bus.status='ACTIVE'
+                  AND (
+                      eligible_bus.bus_type='STANDARD'
+                      OR (?='STUDENT' AND eligible_bus.bus_type='STUDENT_ONLY')
+                      OR (?='FACULTY' AND eligible_bus.bus_type='FACULTY_ONLY')
+                  )
+            )
         LEFT JOIN buses b ON b.bus_id = s.bus_id
         WHERE r.university_id = ?
+          AND r.status = 'ACTIVE'
     ";
 
-    $params = [$ppUniversityId];
+    $params = [
+        (string)$ppProfile['passenger_type'],
+        (string)$ppProfile['passenger_type'],
+        $ppUniversityId,
+    ];
 
     if ($searchTerm !== '') {
         $sql .= " AND (r.route_code LIKE ? OR r.route_name LIKE ? OR r.start_location LIKE ? OR r.end_location LIKE ?)";
@@ -66,7 +82,7 @@ try {
                 'route_name'     => $row['route_name'],
                 'start_location' => $row['start_location'],
                 'end_location'   => $row['end_location'],
-                'fare'           => $row['fare'],
+                'fare'           => uniride_ticket_fare(),
                 'schedules'      => []
             ];
         }
