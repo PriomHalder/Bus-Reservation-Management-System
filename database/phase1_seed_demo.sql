@@ -1,0 +1,37 @@
+-- =====================================================================
+-- RETIRED — DO NOT RUN THIS FILE. IT DESTROYED DATA.
+-- =====================================================================
+-- This early draft of the demo seed did two things that are not acceptable
+-- against the real uniride2 database:
+--
+--   1. It began with DELETE FROM on eight tables, including bookings,
+--      billing_transactions, notifications and complaints. Those deletes
+--      were not restricted to demo rows, so they removed the records that
+--      shipped with uniride2.sql.
+--
+--   2. It ran UPDATE schedules SET schedule_date = CURDATE()
+--      WHERE schedule_id BETWEEN 1 AND 7, rewriting the seven historical
+--      schedules dated 2026-08-20 so they would look "upcoming". That
+--      falsifies the existing records and makes past bookings inconsistent
+--      with the trips they belong to.
+--
+-- The replacement is:
+--
+--       database/seeds/002_dashboard_demo_data.sql
+--
+-- It is additive. It inserts new schedules (ids 9001+) instead of moving
+-- the old ones, dates them relative to CURDATE() so they never go stale,
+-- and its only cleanup step removes rows it created itself, identified by
+-- the DEMO- reference prefix and the 9000+ id range. Existing records are
+-- left untouched.
+--
+-- Import order:
+--   1. database/migrations/000_repair_existing_keys.sql
+--   2. database/migrations/001_add_missing_dashboard_tables.sql
+--   3. database/seeds/002_dashboard_demo_data.sql   (optional)
+--
+-- The seed is optional. Every dashboard panel renders a correct empty state
+-- without it. It is safe to delete this file.
+-- =====================================================================
+
+SELECT 'Retired and unsafe. Use database/seeds/002_dashboard_demo_data.sql instead.' AS `notice`;
