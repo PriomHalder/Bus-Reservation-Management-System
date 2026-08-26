@@ -1,0 +1,30 @@
+-- =====================================================================
+-- RETIRED — do not run this file
+-- =====================================================================
+-- This script has been replaced. Running it would fail or, worse, half
+-- succeed: it created the four new tables before the existing ones had
+-- primary keys, and MySQL rejects a foreign key whose parent column is not
+-- indexed (errno 150).
+--
+-- Use these instead, in this order:
+--
+--   1. database/migrations/000_repair_existing_keys.sql
+--        Adds the PRIMARY KEY / AUTO_INCREMENT / UNIQUE / FOREIGN KEY
+--        definitions that uniride2.sql is missing, and de-duplicates the
+--        passengers rows that the dump inserts twice. Must run first,
+--        because step 2 points foreign keys at those tables.
+--
+--   2. database/migrations/001_add_missing_dashboard_tables.sql
+--        Creates semester_bills, ticket_transfers, route_stops and
+--        booking_status_history, and replaces the two bodyless v_* stubs
+--        with real views.
+--
+--   3. database/seeds/002_dashboard_demo_data.sql   (optional)
+--        Demo data for the dashboards. Not a dependency — every panel
+--        renders an empty state correctly without it.
+--
+-- This file is kept only so the path does not silently vanish from a
+-- half-finished import. It is safe to delete.
+-- =====================================================================
+
+SELECT 'Retired. Run database/migrations/000_repair_existing_keys.sql, then 001, then the optional seed.' AS `notice`;
