@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log('[UniRide reset request] ' . $e->getMessage());
             $error =
                 'Password reset is not initialized. Import ' .
-                'database/password_reset_tokens.sql in phpMyAdmin.';
+                'database/migrations/006_core_schema_consistency.sql in phpMyAdmin.';
         }
     }
 }

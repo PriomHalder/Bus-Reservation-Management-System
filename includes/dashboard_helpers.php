@@ -202,8 +202,13 @@ function setup_notice(PDO $pdo, string $feature, bool $technical = false): strin
         $missing
     ));
 
+    $migration = match ($feature) {
+        'billing', 'route_stops' => 'database/migrations/006_core_schema_consistency.sql',
+        default => 'database/migrations/001_add_missing_dashboard_tables.sql',
+    };
+
     return '<p class="notice">' . h($label) . ' needs a database table that has not been created yet (' .
-           $tables . '). Import <code>database/migrations/001_add_missing_dashboard_tables.sql</code> ' .
+           $tables . '). Import <code>' . h($migration) . '</code> ' .
            'through phpMyAdmin to enable this panel. Nothing else on this dashboard is affected.</p>';
 }
 

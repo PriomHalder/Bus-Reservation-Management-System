@@ -30,7 +30,20 @@ For a fresh database, import these files in this order in phpMyAdmin:
   3. database/migrations/001_add_missing_dashboard_tables.sql
   4. database/migrations/003_shared_dashboard_tenancy.sql
   5. database/migrations/004_shared_profile_management.sql
-  6. database/password_reset_tokens.sql
+  6. database/migrations/006_core_schema_consistency.sql
+  7. database/migrations/007_fixed_bus_route_shifts.sql
+
+For an existing database, migration 006 is the targeted repair for password
+reset tokens, route stops, announcements and semester-bill university
+ownership. It preserves existing records and intentionally does not alter the
+ticket-transfer feature. The older database/password_reset_tokens.sql file is
+retained for backward compatibility but does not need to be imported separately
+when migration 006 is used.
+
+Migration 007 preserves existing schedules and bookings, selects one existing
+assignment as the active route for each bus, and enforces all newly created
+schedules as either Noon (14:00:00) or Evening (17:10:00). Import it before
+using University Admin > Schedules or Passenger > Book Ticket.
 
 Optional demonstration data:
 
@@ -191,6 +204,20 @@ The announcements feature is the reference implementation:
 Publishing an announcement creates notifications only for active passengers
 of that same university. The same page works for every existing and future
 university.
+
+
+CORE SCHEMA CONSISTENCY
+-----------------------
+
+Import this file once after the base schema and migration 000:
+
+  database/migrations/006_core_schema_consistency.sql
+
+It creates any missing password-reset, route-stop and announcement tables,
+adds and backfills semester_bills.university_id, installs the bill ownership
+triggers, and preserves the original semester-bill unique key even when the
+dump calls it uk_passenger_semester. The migration is safe to run again and
+contains no ticket-transfer changes.
 
 
 LOGIN TYPES

@@ -207,7 +207,7 @@ function profile_render_page(PDO $pdo, string $role, int $userId, string $base =
     echo '</section>';
 
     profile_panel_start('personal');
-    echo '<form method="post" class="profile-card profile-form"><input type="hidden" name="csrf_token" value="' . profile_h($csrf) . '"><input type="hidden" name="action" value="update_personal">'
+    echo '<form method="post" class="profile-card profile-form" data-profile-personal-form><input type="hidden" name="csrf_token" value="' . profile_h($csrf) . '"><input type="hidden" name="action" value="update_personal">'
         . '<div class="profile-section-heading"><div><p class="profile-eyebrow">Editable details</p><h3>Personal information</h3></div><p>Email, role and ownership fields are protected.</p></div><div class="profile-form-grid">';
     profile_input('Full name', 'name', $account['name'] ?? '', 'text', true);
     profile_input('Phone number', 'phone', $account['phone'] ?? '', 'tel');
@@ -235,7 +235,7 @@ function profile_render_page(PDO $pdo, string $role, int $userId, string $base =
         profile_input('Office phone', 'office_phone', $account['office_phone'] ?? '', 'tel');
         profile_input('Office location', 'office_location', $account['office_location'] ?? '');
     }
-    echo '</div><div class="profile-form-actions"><button class="profile-secondary" type="button" data-open-profile-tab="overview">Cancel</button><button class="profile-secondary" type="reset">Reset</button><button class="profile-primary" type="submit">Save changes</button></div></form>';
+    echo '</div><div class="profile-form-actions"><button class="profile-secondary" type="button" data-open-profile-tab="overview">Cancel</button><button class="profile-secondary" type="reset" data-profile-reset>Reset</button><button class="profile-primary" type="submit">Save changes</button></div></form>';
     echo '</section>';
 
     profile_panel_start('picture');

@@ -257,17 +257,14 @@ function passenger_nav_groups(): array
         [
             'label' => 'Travel',
             'items' => [
-                ['key' => 'book-ticket',     'label' => 'Book Ticket',        'href' => 'passenger/book-ticket.php',     'soon' => true],
-                ['key' => 'my-bookings',     'label' => 'My Bookings',        'href' => 'passenger/my-bookings.php',     'soon' => true],
-                ['key' => 'routes',    'label' => 'Routes & Schedules', 'href' => 'passenger/routes.php',    'soon' => true],
-                ['key' => 'favorite-routes', 'label' => 'Favorite Routes',    'href' => 'passenger/favorite-routes.php', 'soon' => true],
-                ['key' => 'ticket-transfers','label' => 'Ticket Transfers',   'href' => 'passenger/ticket-transfers.php', 'soon' => true],
+                ['key' => 'book-ticket',     'label' => 'Book Ticket',        'href' => 'passenger/book-ticket.php'],
+                ['key' => 'my-bookings',     'label' => 'My Bookings',        'href' => 'passenger/my-bookings.php'],
+                ['key' => 'routes',    'label' => 'Routes & Schedules', 'href' => 'passenger/routes.php'],
             ],
         ],
         [
             'label' => 'Account',
             'items' => [
-                ['key' => 'complaints',    'label' => 'Complaints',       'href' => 'passenger/complaints.php',    'soon' => true],
                 ['key' => 'semester-billing','label' => 'Semester Billing', 'href' => 'passenger/semester-billing.php', 'soon' => true],
                 ['key' => 'notifications', 'label' => 'Notifications',    'href' => 'passenger/notifications.php', 'soon' => true],
                 ['key' => 'profile',       'label' => 'Profile',          'href' => 'passenger/profile.php',       'soon' => true],
@@ -313,7 +310,6 @@ function university_nav_groups(): array
         [
             'label' => 'Service',
             'items' => [
-                ['key' => 'complaints',    'label' => 'Complaints',    'href' => 'university/complaints.php'],
                 ['key' => 'announcements', 'label' => 'Announcements', 'href' => 'university/announcements.php'],
             ],
         ],
@@ -341,13 +337,6 @@ function system_nav_groups(): array
             'items' => [
                 ['key' => 'universities',   'label' => 'Universities',              'href' => 'admin/universities.php'],
                 ['key' => 'administrators', 'label' => 'University Administrators', 'href' => 'admin/administrators.php'],
-            ],
-        ],
-        [
-            'label' => 'Insight',
-            'items' => [
-                ['key' => 'statistics', 'label' => 'Platform Statistics', 'href' => 'admin/statistics.php', 'soon' => true],
-                ['key' => 'activity',   'label' => 'System Activity',     'href' => 'admin/activity.php',   'soon' => true],
             ],
         ],
         [
@@ -384,7 +373,6 @@ function placeholder_section(string $role, string $script): ?array
             'routes.php'        => ['Routes & Schedules', 'Every route and departure your university runs, with live seat availability.',        'routes'],
             'favorite-routes.php'=> ['Favorite Routes',   'The routes you travel most, saved for one-tap booking.',                              'favorite-routes'],
             'ticket-transfers.php'=> ['Ticket Transfers', 'Send a booked ticket to another passenger, or respond to a transfer request.',        'ticket-transfers'],
-            'complaints.php'    => ['Complaints',         'Raise a transport issue and follow your university transport office\'s response.',    'complaints'],
             'semester-billing.php'=> ['Semester Billing', 'Your transport charges for the semester, itemised by trip.',                          'semester-billing'],
             'notifications.php' => ['Notifications',      'Booking confirmations, schedule changes and complaint responses.',                    'notifications'],
             'profile.php'       => ['Profile',            'Your contact details, academic record and notification preferences.',                 'profile'],
@@ -399,7 +387,6 @@ function placeholder_section(string $role, string $script): ?array
             'schedules.php'     => ['Schedules',            'Assign buses to routes by date and departure time.',                              'schedules'],
             'bookings.php'      => ['Bookings',             'Every booking made against your university\'s schedules.',                        'bookings'],
             'occupancy.php'     => ['Occupancy',            'Seated and standing load per trip, measured against each bus\'s capacity.',        'occupancy'],
-            'complaints.php'    => ['Complaints',           'Triage passenger complaints and publish your response.',                          'complaints'],
             'announcements.php' => ['Announcements',        'Broadcast a notification to your university\'s passengers.',                      'announcements'],
             'semester-fares.php'=> ['Semester & Fares',     'Semester windows and the fare table applied to your routes.',                     'semester-fares'],
             'profile.php'       => ['Profile',              'Your transport office account and contact details.',                              'profile'],
@@ -407,8 +394,6 @@ function placeholder_section(string $role, string $script): ?array
         'SYSTEM_ADMIN' => [
             'universities.php'   => ['Universities',              'Onboard a university, edit its record, or change its platform status.', 'universities'],
             'administrators.php' => ['University Administrators', 'Create and manage the admin accounts that run each university.',        'administrators'],
-            'statistics.php'     => ['Platform Statistics',       'Cross-university totals and growth across all of UniRide.',             'statistics'],
-            'activity.php'       => ['System Activity',           'Platform-level events: onboarding, status changes and admin creation.', 'activity'],
             'profile.php'        => ['Profile',                   'Your system administrator account.',                                    'profile'],
         ],
     ];

@@ -7,7 +7,7 @@ declare(strict_types=1);
 |--------------------------------------------------------------------------
 | A read-only diagnostic page. It answers, in one screen:
 |
-|   * Did migrations 000 and 001 actually import?
+|   * Did the schema changes from migrations 000, 001, 003, 004 and 006 land?
 |   * Does every table have a primary key, an auto-increment id and the
 |     foreign keys the dashboards assume?
 |   * Do the column names the PHP uses match the real database?
@@ -329,12 +329,12 @@ $expectedTables = [
     'notifications'          => 'uniride2.sql',
     'complaints'             => 'uniride2.sql',
     'favorite_routes'        => 'uniride2.sql',
-    'password_reset_tokens'  => 'database/password_reset_tokens.sql',
-    'semester_bills'         => 'database/migrations/001_add_missing_dashboard_tables.sql',
+    'password_reset_tokens'  => 'database/password_reset_tokens.sql or migration 006',
+    'semester_bills'         => 'uniride2.sql; migration 006 adds tenant fields',
     'ticket_transfers'       => 'database/migrations/001_add_missing_dashboard_tables.sql',
-    'route_stops'            => 'database/migrations/001_add_missing_dashboard_tables.sql',
+    'route_stops'            => 'database/migrations/001_add_missing_dashboard_tables.sql or 006',
     'booking_status_history' => 'database/migrations/001_add_missing_dashboard_tables.sql',
-    'announcements'          => 'database/migrations/003_shared_dashboard_tenancy.sql',
+    'announcements'          => 'database/migrations/003_shared_dashboard_tenancy.sql or 006',
     'user_profiles'          => 'database/migrations/004_shared_profile_management.sql',
     'user_notification_preferences' => 'database/migrations/004_shared_profile_management.sql',
     'user_sessions'          => 'database/migrations/004_shared_profile_management.sql',
@@ -367,11 +367,20 @@ $expectedColumns = [
     ['admins', 'password', 'System admin sign-in. This table uses password, not password_hash.'],
     ['schedules', 'schedule_date', 'Today / upcoming filtering.'],
     ['schedules', 'departure_time', 'Trip ordering.'],
+    ['schedules', 'shift_name', 'Migration 007 limits new schedules to Noon or Evening.'],
+    ['bus_route_assignments', 'is_active', 'Identifies the one current route assignment for a bus.'],
+    ['bus_route_assignments', 'active_bus_key', 'Supports the database-enforced one-active-route-per-bus rule.'],
     ['notifications', 'is_read', 'Unread badge in the sidebar.'],
     ['complaints', 'university_response', 'Open vs answered.'],
     ['routes', 'university_id', 'The tenancy fence for every university admin query.'],
     ['semester_bills', 'net_balance', 'Passenger and university billing panels.'],
-    ['semester_bills', 'university_id', 'Nullable by design: sp_create_booking omits it and a trigger backfills it.'],
+    ['semester_bills', 'university_id', 'Tenant ownership derived from the passenger by migration 006.'],
+    ['semester_bills', 'status', 'OPEN, PAID, WAIVED or VOID billing state.'],
+    ['password_reset_tokens', 'account_type', 'Selects the correct account table without exposing account details.'],
+    ['password_reset_tokens', 'account_id', 'The account that requested the reset.'],
+    ['password_reset_tokens', 'token_hash', 'Only a SHA-256 token hash is stored.'],
+    ['password_reset_tokens', 'expires_at', 'Reset links expire after the configured recovery window.'],
+    ['password_reset_tokens', 'used_at', 'Makes each reset link single-use.'],
     ['ticket_transfers', 'from_passenger_id', 'Transfer direction.'],
     ['ticket_transfers', 'to_passenger_id', 'Transfer direction.'],
     ['booking_status_history', 'old_status', 'The shipped procedures write old_status. A column named previous_status instead would break them.'],
@@ -396,10 +405,12 @@ $expectedRoutines = [
 $expectedTriggers = [
     'trg_chk_dup_booking_ins'             => 'uniride2.sql',
     'trg_chk_dup_booking_upd'             => 'uniride2.sql',
-    'trg_bus_route_assign_ins_check'      => 'uniride2.sql',
-    'trg_bus_route_assign_upd_check'      => 'uniride2.sql',
+    'trg_bus_route_assign_ins_check'      => 'database/migrations/007_fixed_bus_route_shifts.sql',
+    'trg_bus_route_assign_upd_check'      => 'database/migrations/007_fixed_bus_route_shifts.sql',
+    'trg_schedule_fixed_shift_insert'     => 'database/migrations/007_fixed_bus_route_shifts.sql',
+    'trg_schedule_fixed_shift_update'     => 'database/migrations/007_fixed_bus_route_shifts.sql',
     'trg_complaint_response_notification' => 'uniride2.sql',
-    'trg_semester_bills_set_university'   => 'database/migrations/001_add_missing_dashboard_tables.sql',
+    'trg_semester_bills_set_university'   => 'database/migrations/006_core_schema_consistency.sql',
 ];
 
 /*
@@ -425,11 +436,14 @@ $expectedUnique = [
     ['uq_bus_registration', 'buses', 'registration_number', ''],
     ['uq_route_code', 'routes', 'university_id, route_code', 'Route codes are unique per university, not globally — different universities may both run an R1.'],
     ['uq_bus_route', 'bus_route_assignments', 'bus_id, route_id', 'The relationship table carries no duplicates.'],
+    ['uq_active_assignment_bus', 'bus_route_assignments', 'active_bus_key', 'A bus can have only one active route assignment.'],
+    ['uq_bus_date_shift', 'schedules', 'bus_id, schedule_date, shift_name', 'A bus can operate each fixed shift only once per date.'],
     ['uq_booking_reference', 'bookings', 'booking_reference', 'Printed on the ticket, so it has to identify exactly one booking.'],
     ['uq_booking_qr', 'bookings', 'qr_token', 'Scanned at boarding.'],
     ['uq_favorite', 'favorite_routes', 'passenger_id, route_id', 'Stops a route being favourited twice.'],
     ['uq_bill_passenger_semester', 'semester_bills', 'passenger_id, semester_id', 'sp_create_booking depends on this for ON DUPLICATE KEY UPDATE.'],
     ['uq_route_stop_order', 'route_stops', 'route_id, stop_order', 'Two stops cannot both claim position 3.'],
+    ['uq_reset_token_hash', 'password_reset_tokens', 'token_hash', 'A recovery token must identify exactly one reset request.'],
 ];
 
 /** Look an index up by name, whatever table it sits on. */
@@ -444,6 +458,29 @@ function sc_index(array $indexByTable, string $table, string $name): ?array
     return null;
 }
 
+/**
+ * Return a unique index with the expected ordered column list.
+ *
+ * Index names changed between the original dump (uk_*) and later migrations
+ * (uq_*). Correctness depends on uniqueness and column order, not the label,
+ * so accepting an equivalent definition prevents false missing-key reports.
+ */
+function sc_unique_index(array $indexByTable, string $table, string $name, string $columns): ?array
+{
+    $named = sc_index($indexByTable, $table, $name);
+    if ($named !== null) {
+        return $named;
+    }
+
+    foreach ($indexByTable[$table] ?? [] as $index) {
+        if ((int)$index['non_unique'] === 0 && (string)$index['cols'] === $columns) {
+            return $index;
+        }
+    }
+
+    return null;
+}
+
 $missingTables = [];
 foreach ($expectedTables as $name => $source) {
     if (!isset($tables[$name])) {
@@ -452,15 +489,52 @@ foreach ($expectedTables as $name => $source) {
 }
 
 $migration001Tables = ['semester_bills', 'ticket_transfers', 'route_stops', 'booking_status_history'];
-$migration001Done   = true;
-foreach ($migration001Tables as $t) {
-    if (!isset($tables[$t])) {
-        $migration001Done = false;
-    }
-}
+$migration001Missing = array_values(array_filter(
+    $migration001Tables,
+    static fn (string $table): bool => !isset($tables[$table])
+));
+$migration001Done = $migration001Missing === [];
 
 $migration003Done = isset($tables['announcements']);
 $migration004Done = isset($tables['user_profiles'], $tables['user_notification_preferences'], $tables['user_sessions'], $tables['user_security_events']);
+$migration006Done = isset(
+    $tables['password_reset_tokens'],
+    $tables['route_stops'],
+    $tables['announcements'],
+    $columns['password_reset_tokens']['account_type'],
+    $columns['password_reset_tokens']['account_id'],
+    $columns['password_reset_tokens']['token_hash'],
+    $columns['password_reset_tokens']['expires_at'],
+    $columns['password_reset_tokens']['used_at'],
+    $columns['route_stops']['route_id'],
+    $columns['route_stops']['stop_name'],
+    $columns['route_stops']['stop_order'],
+    $columns['announcements']['university_id'],
+    $columns['announcements']['created_by'],
+    $columns['announcements']['title'],
+    $columns['announcements']['message'],
+    $columns['announcements']['status'],
+    $columns['semester_bills']['university_id'],
+    $columns['semester_bills']['status'],
+    $triggers['trg_semester_bills_set_university']
+);
+$migration007Done = isset(
+    $columns['schedules']['shift_name'],
+    $columns['bus_route_assignments']['is_active'],
+    $columns['bus_route_assignments']['active_bus_key'],
+    $triggers['trg_schedule_fixed_shift_insert'],
+    $triggers['trg_schedule_fixed_shift_update']
+) && sc_unique_index(
+    $indexByTable,
+    'bus_route_assignments',
+    'uq_active_assignment_bus',
+    'active_bus_key'
+) !== null && sc_unique_index(
+    $indexByTable,
+    'schedules',
+    'uq_bus_date_shift',
+    'bus_id, schedule_date, shift_name'
+) !== null;
 
 // Migration 000 is the one that adds the keys. Its most visible effect is
 // that bookings and passengers gain a primary key, so use that as the tell.
@@ -716,6 +790,43 @@ $probeDefs = [
         'fix'    => 'trg_bus_route_assign_ins_check should reject these.',
     ],
     [
+        'label'  => 'Buses with more than one active route assignment',
+        'needs'  => ['bus_route_assignments'],
+        'needs_columns' => [
+            ['bus_route_assignments', 'is_active'],
+            ['bus_route_assignments', 'active_bus_key'],
+        ],
+        'sql'    => "SELECT COUNT(*) FROM (
+                        SELECT bus_id FROM bus_route_assignments
+                         WHERE is_active=1
+                         GROUP BY bus_id HAVING COUNT(*)>1) d",
+        'fix'    => 'Migration 007 keeps one canonical active assignment per bus and enforces it with uq_active_assignment_bus.',
+    ],
+    [
+        'label'  => 'Fixed shifts with an incorrect departure time',
+        'needs'  => ['schedules'],
+        'needs_columns' => [['schedules', 'shift_name']],
+        'sql'    => "SELECT COUNT(*) FROM schedules
+                      WHERE shift_name IS NOT NULL
+                        AND ((shift_name='NOON' AND departure_time<>'14:00:00')
+                          OR (shift_name='EVENING' AND departure_time<>'17:10:00'))",
+        'fix'    => 'Migration 007 enforces Noon at 14:00:00 and Evening at 17:10:00 for all new or edited schedules.',
+    ],
+    [
+        'label'  => 'Fixed schedules outside the bus active route',
+        'needs'  => ['schedules', 'bus_route_assignments'],
+        'needs_columns' => [
+            ['schedules', 'shift_name'],
+            ['bus_route_assignments', 'is_active'],
+        ],
+        'sql'    => "SELECT COUNT(*)
+                       FROM schedules s
+                       LEFT JOIN bus_route_assignments a
+                         ON a.bus_id=s.bus_id AND a.route_id=s.route_id AND a.is_active=1
+                      WHERE s.shift_name IS NOT NULL AND a.assignment_id IS NULL",
+        'fix'    => 'Every Noon or Evening schedule must use the bus\'s one active route assignment.',
+    ],
+    [
         'label'  => 'Passengers with no STUDENT or FACULTY row',
         'needs'  => ['passengers', 'students', 'faculty'],
         'sql'    => "SELECT COUNT(*)
@@ -737,9 +848,10 @@ $probeDefs = [
     [
         'label'  => 'Semester bills with no university',
         'needs'  => ['semester_bills'],
+        'needs_columns' => [['semester_bills', 'university_id']],
         'sql'    => "SELECT COUNT(*) FROM semester_bills WHERE university_id IS NULL",
-        'fix'    => 'trg_semester_bills_set_university fills this on insert. Rows created before the '
-                  . 'trigger existed stay NULL; the backfill at the end of migration 001 clears them.',
+        'fix'    => 'trg_semester_bills_set_university fills this on insert. Migration 006 also '
+                  . 'backfills existing rows from each bill owner’s passenger record.',
     ],
     [
         'label'  => 'Semester bills duplicated for one passenger and semester',
@@ -812,6 +924,18 @@ foreach ($probeDefs as $def) {
 
     if ($missingNeeds !== []) {
         $probes[] = $def + ['count' => null, 'skipped' => implode(', ', $missingNeeds)];
+        continue;
+    }
+
+    $missingColumnNeeds = [];
+    foreach ($def['needs_columns'] ?? [] as [$neededTable, $neededColumn]) {
+        if (!isset($columns[$neededTable][$neededColumn])) {
+            $missingColumnNeeds[] = $neededTable . '.' . $neededColumn;
+        }
+    }
+
+    if ($missingColumnNeeds !== []) {
+        $probes[] = $def + ['count' => null, 'skipped' => implode(', ', $missingColumnNeeds)];
         continue;
     }
 
@@ -909,7 +1033,7 @@ foreach ($expectedUnique as [$uName, $uTable, $uCols, $uWhy]) {
         continue;                             // already reported as a missing table
     }
 
-    $ix = sc_index($indexByTable, $uTable, $uName);
+    $ix = sc_unique_index($indexByTable, $uTable, $uName, $uCols);
 
     // Present but non-unique is worse than absent: it looks like the
     // constraint is there while guaranteeing nothing.
@@ -920,7 +1044,8 @@ foreach ($expectedUnique as [$uName, $uTable, $uCols, $uWhy]) {
 
 $errors = sc_errors();
 
-$blocking = count($missingTables) + count($missingColumns) + count($missingUnique) + $probeFailures;
+$missingObjectCount = count($missingTables) + count($missingRoutines) + count($missingTriggers);
+$blocking = $missingObjectCount + count($missingColumns) + count($missingUnique) + $probeFailures;
 ?>
 <!doctype html>
 <html lang="en">
@@ -1006,7 +1131,7 @@ $yesNo = static function (bool $ok, string $yes = 'Yes', string $no = 'No') use 
     <div class="sc-sum">
         <div><b><?= h($currentDb === '' ? '—' : $currentDb) ?></b><span>Connected database</span></div>
         <div><b><?= count($tables) ?></b><span>Tables and views</span></div>
-        <div><b><?= count($missingTables) ?></b><span>Expected objects missing</span></div>
+        <div><b><?= $missingObjectCount ?></b><span>Expected objects missing</span></div>
         <div><b><?= $probeFailures ?></b><span>Integrity findings</span></div>
     </div>
 </header>
@@ -1090,12 +1215,17 @@ $yesNo = static function (bool $ok, string $yes = 'Yes', string $no = 'No') use 
     <h2>Migration status</h2>
     <p>
         The dashboards run against the tables that ship in
-        <code>uniride2.sql</code>. Three migrations complete the picture:
-        <strong>000</strong> adds the keys the dump omits, and
-        <strong>001</strong> creates the four tables the stored procedures
-        already reference but the dump never declares. <strong>003</strong>
-        adds the university-owned announcement feature. Import 000 first —
-        later migrations point foreign keys at the keys 000 creates.
+        <code>uniride2.sql</code>. The numbered migrations complete the picture.
+        The states below are inferred from the live schema, not from a separate
+        migration-history table. <strong>000</strong> adds the keys the dump omits.
+        <strong>001</strong> supplies support tables, columns and usable views needed
+        by dashboard workflows. <strong>003</strong> adds the university-owned
+        announcement feature. <strong>006</strong> safely consolidates password
+        recovery, route stops, announcements and semester-bill university
+        ownership for existing XAMPP databases. <strong>007</strong> adds one
+        active route assignment per bus and the fixed Noon/Evening schedule
+        policy. Ticket transfers remain unchanged. Import 000 first—later
+        migrations point foreign keys at the keys 000 creates.
     </p>
 
     <table class="sc">
@@ -1127,8 +1257,8 @@ $yesNo = static function (bool $ok, string $yes = 'Yes', string $no = 'No') use 
                 <?= $migration001Done ? $tag('Applied', 'ok') : $tag('Not applied', 'warn') ?>
                 <?php if (!$migration001Done): ?>
                     <div class="muted" style="margin-top:6px">
-                        The billing, transfers and route-stop panels will show a setup
-                        notice until this runs. Nothing else is affected.
+                        Missing inferred object<?= count($migration001Missing) === 1 ? '' : 's' ?>:
+                        <code><?= h(implode(', ', $migration001Missing)) ?></code>.
                     </div>
                 <?php endif; ?>
             </td>
@@ -1153,6 +1283,32 @@ $yesNo = static function (bool $ok, string $yes = 'Yes', string $no = 'No') use 
                 <?php if (!$migration004Done): ?>
                     <div class="muted" style="margin-top:6px">
                         Shared profiles, preferences and active-session management remain disabled until this runs.
+                    </div>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <tr>
+            <td>Migration 006 — core schema consistency</td>
+            <td><code>database/migrations/006_core_schema_consistency.sql</code></td>
+            <td>
+                <?= $migration006Done ? $tag('Target state ready', 'ok') : $tag('Repair needed', 'warn') ?>
+                <?php if (!$migration006Done): ?>
+                    <div class="muted" style="margin-top:6px">
+                        Password recovery, route stops, announcements or semester-bill
+                        university ownership still need this targeted migration.
+                    </div>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <tr>
+            <td>Migration 007 — fixed bus shifts</td>
+            <td><code>database/migrations/007_fixed_bus_route_shifts.sql</code></td>
+            <td>
+                <?= $migration007Done ? $tag('Applied', 'ok') : $tag('Not applied', 'warn') ?>
+                <?php if (!$migration007Done): ?>
+                    <div class="muted" style="margin-top:6px">
+                        Import this migration to enable one active route per bus,
+                        Noon at 2:00 PM and Evening at 5:10 PM.
                     </div>
                 <?php endif; ?>
             </td>
@@ -1428,10 +1584,10 @@ $yesNo = static function (bool $ok, string $yes = 'Yes', string $no = 'No') use 
         <p class="sc-note bad">
             <strong><?= count($missingUnique) ?></strong> of
             <?= count($expectedUnique) ?> unique keys missing.
-            <code>database/migrations/000_repair_existing_keys.sql</code> adds all
-            but the last two; migration 001 adds those. If a key refuses to
-            create, the cause is duplicate rows already in the table — the
-            integrity probes below name them.
+            Migration 000 adds the core keys; the feature migrations add the
+            remaining billing, route-stop and recovery-token keys. If a key
+            refuses to create, the cause is usually duplicate rows already in
+            the table — the integrity probes below name them.
         </p>
     <?php endif; ?>
 
@@ -1441,7 +1597,7 @@ $yesNo = static function (bool $ok, string $yes = 'Yes', string $no = 'No') use 
         <?php foreach ($expectedUnique as [$uName, $uTable, $uCols, $uWhy]): ?>
             <?php
             $tableThere = isset($tables[$uTable]);
-            $ix         = $tableThere ? sc_index($indexByTable, $uTable, $uName) : null;
+            $ix         = $tableThere ? sc_unique_index($indexByTable, $uTable, $uName, $uCols) : null;
             $actualCols = $ix === null ? '' : (string)$ix['cols'];
             $isUnique   = $ix !== null && (int)$ix['non_unique'] === 0;
             ?>
@@ -1459,6 +1615,11 @@ $yesNo = static function (bool $ok, string $yes = 'Yes', string $no = 'No') use 
                         <?= $tag('Table absent', 'skip') ?>
                     <?php elseif ($isUnique): ?>
                         <?= $tag('Unique', 'ok') ?>
+                        <?php if ((string)$ix['index_name'] !== $uName): ?>
+                            <div class="muted" style="font-size:11.5px;margin-top:4px">
+                                equivalent key <code><?= h((string)$ix['index_name']) ?></code>
+                            </div>
+                        <?php endif; ?>
                     <?php elseif ($ix !== null): ?>
                         <?= $tag('Not unique', 'bad') ?>
                     <?php else: ?>

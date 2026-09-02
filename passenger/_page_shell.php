@@ -14,8 +14,11 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
+date_default_timezone_set('Asia/Dhaka');
+
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/dashboard/nav.php';
+require_once __DIR__ . '/../includes/booking-service.php';
 require_once __DIR__ . '/../includes/profile/session-management.php';
 require_once __DIR__ . '/../includes/theme.php';
 
@@ -117,7 +120,6 @@ $ppCounts = [
     'bookings' => 0,
     'favorites' => 0,
     'notifications' => 0,
-    'complaints' => 0,
 ];
 
 try {
@@ -154,15 +156,6 @@ try {
         [$ppPassengerId]
     );
 
-    $ppCounts['complaints'] = pp_scalar(
-        $pdo,
-        "SELECT COUNT(*)
-         FROM complaints
-         WHERE passenger_id = ?
-           AND university_id = ?
-           AND status IN ('OPEN','IN_PROGRESS')",
-        [$ppPassengerId, $ppUniversityId]
-    );
 } catch (Throwable $e) {
     error_log('[UniRide Passenger subpage shell] ' . $e->getMessage());
 }
@@ -800,7 +793,13 @@ function pp_render_start(
         <link rel="stylesheet" href="../css/profile.css">
         <script src="../js/profile.js" defer></script>
     <?php endif; ?>
+    <?php foreach ($PP_PAGE_STYLESHEETS ?? [] as $sheet): ?>
+        <link rel="stylesheet" href="<?= pp_h($sheet) ?>">
+    <?php endforeach; ?>
     <script src="../js/dashboard.js" defer></script>
+    <?php foreach ($PP_PAGE_SCRIPTS ?? [] as $script): ?>
+        <script src="<?= pp_h($script) ?>" defer></script>
+    <?php endforeach; ?>
 </head>
 <body class="pp-body">
 
@@ -849,7 +848,6 @@ function pp_render_start(
                 [
                     'my-bookings' => $ppCounts['bookings'],
                     'favorite-routes' => $ppCounts['favorites'],
-                    'complaints' => ['value' => $ppCounts['complaints'], 'alert' => true],
                     'notifications' => ['value' => $ppCounts['notifications'], 'alert' => true],
                 ],
                 strtoupper((string)($ppProfile['passenger_type'] ?? '')) === 'STUDENT'

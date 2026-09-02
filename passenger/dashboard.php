@@ -5,6 +5,7 @@ session_start();
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/dashboard/nav.php';
+require_once __DIR__ . '/../includes/booking-service.php';
 require_once __DIR__ . '/../includes/profile/session-management.php';
 require_once __DIR__ . '/../includes/theme.php';
 
@@ -123,14 +124,12 @@ $activeBookings = [];
 $favoriteRoutes = [];
 $availableSchedules = [];
 $notifications = [];
-$complaints = [];
 $dashboardError = '';
 
 $stats = [
     'active_bookings' => 0,
     'favorites' => 0,
     'unread_notifications' => 0,
-    'open_complaints' => 0,
     'booking_history' => 0,
     'transfers' => 0,
     'semester_balance' => 0.0,
@@ -251,16 +250,6 @@ try {
          WHERE passenger_id = ?
            AND is_read = 0",
         [$passengerId]
-    );
-
-    $stats['open_complaints'] = (int)pd_scalar(
-        $pdo,
-        "SELECT COUNT(*)
-         FROM complaints
-         WHERE passenger_id = ?
-           AND university_id = ?
-           AND status IN ('OPEN','IN_PROGRESS')",
-        [$passengerId, (int)$profile['university_id']]
     );
 
     $stats['booking_history'] = (int)pd_scalar(
@@ -458,22 +447,6 @@ try {
         [$passengerId]
     );
 
-    $complaints = pd_all(
-        $pdo,
-        "SELECT
-            complaint_id,
-            subject,
-            status,
-            university_response,
-            submitted_at,
-            updated_at
-         FROM complaints
-         WHERE passenger_id = ?
-           AND university_id = ?
-         ORDER BY updated_at DESC, complaint_id DESC
-         LIMIT 4",
-        [$passengerId, (int)$profile['university_id']]
-    );
 } catch (Throwable $e) {
     error_log('[UniRide Passenger dashboard] ' . $e->getMessage());
     $dashboardError = 'Some dashboard information is temporarily unavailable.';
@@ -494,7 +467,6 @@ $bookingsPage = pd_page(['my-bookings.php', 'bookings.php'], '#my-trip');
 $routesPage = pd_page(['routes.php', 'routes-schedules.php', 'schedules.php'], '#available-rides');
 $favoritesPage = pd_page(['favorite-routes.php', 'favorites.php'], '#favorites');
 $transfersPage = pd_page(['ticket-transfers.php', 'transfers.php'], '#account-summary');
-$complaintsPage = pd_page(['complaints.php'], '#complaints');
 $billingPage = pd_page(['semester-billing.php', 'billing.php'], '#billing');
 $notificationsPage = pd_page(['notifications.php'], '#notifications');
 $profilePage = pd_page(['profile.php'], '#profile-summary');
@@ -1236,13 +1208,11 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
             font-size: 8px;
         }
 
-        .notification-list,
-        .complaint-list {
+        .notification-list {
             display: grid;
         }
 
-        .notification-row,
-        .complaint-row {
+        .notification-row {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
             gap: 12px;
@@ -1252,8 +1222,7 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
             border-top: 1px solid var(--pr-line);
         }
 
-        .notification-row:first-child,
-        .complaint-row:first-child {
+        .notification-row:first-child {
             border-top: 0;
         }
 
@@ -1273,14 +1242,12 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
             background: var(--pr-blue);
         }
 
-        .notification-row strong,
-        .complaint-row strong {
+        .notification-row strong {
             display: block;
             font-size: 9px;
         }
 
-        .notification-row p,
-        .complaint-row p {
+        .notification-row p {
             margin: 2px 0 0;
             overflow: hidden;
             color: var(--pr-muted);
@@ -1289,8 +1256,7 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
             white-space: nowrap;
         }
 
-        .notification-row time,
-        .complaint-row time {
+        .notification-row time {
             color: #969ba1;
             font-size: 7px;
             white-space: nowrap;
@@ -1540,7 +1506,6 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
                 [
                     'my-bookings' => $stats['active_bookings'],
                     'favorite-routes' => $stats['favorites'],
-                    'complaints' => ['value' => $stats['open_complaints'], 'alert' => true],
                     'notifications' => ['value' => $stats['unread_notifications'], 'alert' => true],
                 ],
                 strtoupper((string)($profile['passenger_type'] ?? '')) === 'STUDENT'
@@ -1707,7 +1672,7 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
                         <article class="ride-card">
                             <div class="ride-card-top">
                                 <span class="route-badge"><?= pd_h($ride['route_code']) ?></span>
-                                <span class="fare">৳<?= number_format((float)$ride['fare'], 0) ?></span>
+                                <span class="fare">৳<?= number_format(uniride_ticket_fare(), 0) ?></span>
                             </div>
                             <h3><?= pd_h($ride['route_name']) ?></h3>
                             <div class="mini-route">
@@ -1759,7 +1724,7 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
                         <article class="favorite-card">
                             <div class="favorite-card-top">
                                 <span class="route-badge"><?= pd_h($route['route_code']) ?></span>
-                                <span class="fare">৳<?= number_format((float)$route['fare'], 0) ?></span>
+                                <span class="fare">৳<?= number_format(uniride_ticket_fare(), 0) ?></span>
                             </div>
                             <h3><?= pd_h($route['route_name']) ?></h3>
                             <div class="mini-route">
@@ -1780,7 +1745,7 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
             <?php endif; ?>
         </section>
 
-        <section class="section split-grid">
+        <section class="section">
             <article class="panel" id="notifications">
                 <div class="panel-heading">
                     <div>
@@ -1813,40 +1778,6 @@ $profilePage = pd_page(['profile.php'], '#profile-summary');
                 <?php endif; ?>
             </article>
 
-            <article class="panel" id="complaints">
-                <div class="panel-heading">
-                    <div>
-                        <p class="kicker">Support</p>
-                        <h3>Complaints</h3>
-                        <p><?= number_format($stats['open_complaints']) ?> open or in progress</p>
-                    </div>
-                    <a class="text-action" href="<?= pd_h($complaintsPage) ?>">Open complaints</a>
-                </div>
-
-                <?php if (!$complaints): ?>
-                    <div class="empty-state">
-                        <div>
-                            <strong>No complaints submitted.</strong>
-                            <p>You can contact your university transport team when needed.</p>
-                        </div>
-                    </div>
-                <?php else: ?>
-                    <div class="complaint-list">
-                        <?php foreach ($complaints as $complaint): ?>
-                            <div class="complaint-row">
-                                <div>
-                                    <strong><?= pd_h($complaint['subject']) ?></strong>
-                                    <p><?= pd_h($complaint['university_response'] ?: 'Awaiting or tracking university response') ?></p>
-                                </div>
-                                <div>
-                                    <span class="status-pill <?= pd_h(pd_status_class($complaint['status'])) ?>"><?= pd_h($complaint['status']) ?></span>
-                                    <time><?= pd_h(date('d M', strtotime($complaint['updated_at']))) ?></time>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </article>
         </section>
 
         <section class="section split-grid">

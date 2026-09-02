@@ -421,14 +421,10 @@ $semesterName = $activeSemester['semester_name'] ?? 'No active semester';
                     'Create Uni Admin'
                 ) ?>
 
-                <?= sa_file_link(
-                    'statistics.php',
-                    'Platform Statistics'
-                ) ?>
             </div>
         </section>
 
-        <section class="system-metric-grid" aria-label="Platform statistics">
+        <section class="system-metric-grid" aria-label="Platform overview metrics">
             <article class="system-metric-card system-metric-featured">
                 <p>Universities</p>
                 <strong><?= number_format($stats['universities']) ?></strong>

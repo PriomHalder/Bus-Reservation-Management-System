@@ -412,19 +412,36 @@ Make sure all UniRide tables are inside this database.
 
 ---
 
-### 5. Import Password Reset Support
+### 5. Import Core Schema Consistency
 
 Select the `uniride2` database in phpMyAdmin and import:
 
 ```text
-database/password_reset_tokens.sql
+database/migrations/006_core_schema_consistency.sql
 ```
 
-This creates the table required for password reset functionality.
+This non-destructive migration creates any missing password-reset, route-stop
+and announcement tables and adds the required university ownership fields to
+semester billing. It preserves existing records and intentionally leaves the
+ticket-transfer feature unchanged.
 
 ---
 
-### 6. Configure the Database Connection
+### 6. Import Fixed Bus and Shift Scheduling
+
+Next, import:
+
+```text
+database/migrations/007_fixed_bus_route_shifts.sql
+```
+
+This non-destructive migration keeps historical schedules and bookings,
+establishes one active route per bus, and enforces Noon at 2:00 PM and Evening
+at 5:10 PM for all newly created schedules.
+
+---
+
+### 7. Configure the Database Connection
 
 Open:
 

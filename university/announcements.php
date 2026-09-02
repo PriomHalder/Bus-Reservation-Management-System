@@ -182,7 +182,7 @@ u_render_heading_end();
 <?php if (!$tableReady): ?>
     <div class="up-note">
         <strong>Database migration required.</strong>
-        Run <code>database/migrations/003_shared_dashboard_tenancy.sql</code> once to enable tenant-owned announcements for every university.
+        Run <code>database/migrations/006_core_schema_consistency.sql</code> once to enable tenant-owned announcements for every university.
     </div>
 <?php else: ?>
     <?php if (isset($_GET['new'])): ?>

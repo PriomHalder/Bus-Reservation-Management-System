@@ -39,6 +39,34 @@
     });
     activateTab(location.hash.slice(1) || 'overview', false);
 
+    document.querySelectorAll('[data-profile-personal-form]').forEach((personalForm) => {
+        const fields = [...personalForm.elements].filter((field) => {
+            if (!(field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement)) return false;
+            if (field.disabled || field.readOnly) return false;
+            return !['hidden', 'submit', 'button', 'reset'].includes(field.type);
+        });
+        const persistedValues = fields.map((field) => ({
+            field,
+            checked: field instanceof HTMLInputElement && ['checkbox', 'radio'].includes(field.type)
+                ? field.checked
+                : undefined,
+            value: field.value,
+        }));
+
+        personalForm.querySelector('[data-profile-reset]')?.addEventListener('click', (event) => {
+            event.preventDefault();
+            persistedValues.forEach(({field, checked, value}) => {
+                field.setCustomValidity('');
+                if (typeof checked === 'boolean') field.checked = checked;
+                else field.value = value;
+                field.classList.remove('is-invalid', 'is-valid');
+                field.removeAttribute('aria-invalid');
+                field.dispatchEvent(new Event('input', {bubbles: true}));
+                field.dispatchEvent(new Event('change', {bubbles: true}));
+            });
+        });
+    });
+
     document.querySelectorAll('[data-password-toggle]').forEach((button) => {
         button.addEventListener('click', () => {
             const input = button.parentElement?.querySelector('input');

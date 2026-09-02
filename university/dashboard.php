@@ -4,6 +4,7 @@ declare(strict_types=1);
 session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/dashboard/nav.php';
+require_once __DIR__ . '/../includes/booking-service.php';
 require_once __DIR__ . '/../includes/profile/session-management.php';
 require_once __DIR__ . '/../includes/theme.php';
 
@@ -174,48 +175,6 @@ $isToday = $selectedDate === $today->format('Y-m-d');
 $isTomorrow = $selectedDate === $tomorrow->format('Y-m-d');
 $dateContext = $isToday ? 'Today' : ($isTomorrow ? 'Tomorrow' : $selectedDateObject->format('d M Y'));
 
-if (empty($_SESSION['university_dashboard_csrf'])) {
-    $_SESSION['university_dashboard_csrf'] = bin2hex(random_bytes(32));
-}
-$csrfToken = (string)$_SESSION['university_dashboard_csrf'];
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_complaint') {
-    $submitted = (string)($_POST['csrf_token'] ?? '');
-    $complaintId = (int)($_POST['complaint_id'] ?? 0);
-    $newStatus = strtoupper(trim((string)($_POST['status'] ?? '')));
-    $response = trim((string)($_POST['university_response'] ?? ''));
-    $allowed = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
-
-    if (!hash_equals($csrfToken, $submitted) || $complaintId <= 0 || !in_array($newStatus, $allowed, true)) {
-        $_SESSION['uni_dashboard_flash'] = ['type' => 'error', 'message' => 'The complaint update could not be validated.'];
-    } else {
-        try {
-            $stmt = $pdo->prepare(
-                "UPDATE complaints
-                 SET status = ?,
-                     university_response = CASE WHEN ? <> '' THEN ? ELSE university_response END,
-                     updated_at = NOW()
-                 WHERE complaint_id = ? AND university_id = ?"
-            );
-            $stmt->execute([$newStatus, $response, $response, $complaintId, $universityId]);
-            $_SESSION['uni_dashboard_flash'] = [
-                'type' => 'success',
-                'message' => $stmt->rowCount() ? 'Complaint updated successfully.' : 'No complaint record was changed.',
-            ];
-        } catch (Throwable $e) {
-            error_log('[UniRide Uni Admin complaint update] ' . $e->getMessage());
-            $_SESSION['uni_dashboard_flash'] = ['type' => 'error', 'message' => 'The complaint could not be updated right now.'];
-        }
-    }
-
-    $redirect = 'dashboard.php' . (!$isToday ? '?date=' . rawurlencode($selectedDate) : '');
-    header('Location: ' . $redirect . '#complaints');
-    exit;
-}
-
-$flash = $_SESSION['uni_dashboard_flash'] ?? null;
-unset($_SESSION['uni_dashboard_flash']);
-
 $university = $semester = [];
 $passengerStats = ['total_passengers'=>0,'students'=>0,'faculty'=>0];
 $fleetStats = ['total_buses'=>0,'active_buses'=>0,'seat_capacity'=>0,'standing_capacity'=>0];
@@ -224,8 +183,7 @@ $departureStats = ['departures'=>0,'next_departure'=>null];
 $bookingStats = ['bookings'=>0,'trips_with_bookings'=>0];
 $capacityStats = ['seat_capacity'=>0,'standing_capacity'=>0];
 $loadStats = ['booked_seats'=>0,'booked_standing'=>0];
-$complaintStats = ['open_total'=>0,'awaiting_response'=>0,'in_progress'=>0];
-$departures = $recentBookings = $complaints = $fleet = $routeUtilisation = [];
+$departures = $recentBookings = $fleet = $routeUtilisation = [];
 $routeStopGroups = $recentTransfers = $needsAttention = [];
 $transferStats = ['pending'=>0,'selected_date'=>0,'completed'=>0];
 $billingStats = ['passengers_billed'=>0,'total_charges'=>0,'total_credits'=>0,'net_balance'=>0,'transactions'=>0];
@@ -313,15 +271,6 @@ try {
         [$universityId,$selectedDate]
     ));
 
-    $complaintStats = array_merge($complaintStats, fetchOne($pdo,
-        "SELECT
-            COUNT(DISTINCT CASE WHEN status IN ('OPEN','IN_PROGRESS') THEN complaint_id END) open_total,
-            COUNT(DISTINCT CASE WHEN status='OPEN' AND (university_response IS NULL OR TRIM(university_response)='') THEN complaint_id END) awaiting_response,
-            COUNT(DISTINCT CASE WHEN status='IN_PROGRESS' THEN complaint_id END) in_progress
-         FROM complaints WHERE university_id=?",
-        [$universityId]
-    ));
-
     $departures = fetchAllRows($pdo,
         "SELECT s.schedule_id,s.schedule_date,s.departure_time,s.arrival_time,s.status,
                 r.route_code,r.route_name,b.bus_id,b.registration_number,b.bus_type,b.seat_capacity,b.standing_capacity,
@@ -348,15 +297,6 @@ try {
            ON p.passenger_id=bk.passenger_id
          WHERE r.university_id=?
          ORDER BY bk.booking_date DESC,bk.booking_id DESC LIMIT 8",
-        [$universityId]
-    );
-
-    $complaints = fetchAllRows($pdo,
-        "SELECT c.complaint_id,c.subject,c.description,c.status,c.university_response,c.submitted_at,c.updated_at,p.name passenger_name
-         FROM complaints c
-         JOIN (SELECT passenger_id,MIN(name) name FROM passengers GROUP BY passenger_id) p ON p.passenger_id=c.passenger_id
-         WHERE c.university_id=? AND c.status IN ('OPEN','IN_PROGRESS')
-         ORDER BY CASE c.status WHEN 'OPEN' THEN 0 ELSE 1 END,c.submitted_at ASC LIMIT 6",
         [$universityId]
     );
 
@@ -402,11 +342,6 @@ try {
          WHERE r.university_id=? ORDER BY booking_count DESC,r.route_code",
         [$periodStart,$periodEnd,$periodStart,$periodEnd,$universityId]
     );
-
-    if ((int)$complaintStats['awaiting_response'] > 0) {
-        $n=(int)$complaintStats['awaiting_response'];
-        $needsAttention[] = "$n complaint" . ($n===1?'':'s') . ' awaiting a university response.';
-    }
 
     $panelAvailability['route_stops'] = tableExists($pdo,'route_stops');
     if ($panelAvailability['route_stops']) {
@@ -515,7 +450,6 @@ $semesterName=$semester['semester_name']??'No active semester';
 $passengerCount=(int)$passengerStats['total_passengers'];
 $busCount=(int)$fleetStats['total_buses'];
 $routeCount=(int)$routeStats['active_routes'];
-$openComplaintCount=(int)$complaintStats['open_total'];
 ?>
 <!doctype html>
 <html lang="en">
@@ -558,7 +492,6 @@ $openComplaintCount=(int)$complaintStats['open_total'];
             'faculty' => (int)$passengerStats['faculty'],
             'buses' => $busCount,
             'routes' => $routeCount,
-            'complaints' => $openComplaintCount,
         ],
         [],
         '..',
@@ -578,7 +511,6 @@ $openComplaintCount=(int)$complaintStats['open_total'];
 
 <main class="uni-main">
 <?php if ($dashboardError): ?><div class="dashboard-alert is-error" role="alert"><?= uh($dashboardError) ?></div><?php endif; ?>
-<?php if ($flash): ?><div class="dashboard-alert <?= ($flash['type']??'')==='success'?'is-success':'is-error' ?>" role="status"><?= uh($flash['message']??'') ?></div><?php endif; ?>
 
 <section class="dashboard-title-row">
     <div>
@@ -590,7 +522,6 @@ $openComplaintCount=(int)$complaintStats['open_total'];
         <?= actionLink('schedules.php','+ Create Schedule','primary-action',['new'=>1]) ?>
         <?= actionLink('buses.php','+ Add Bus','secondary-action',['new'=>1]) ?>
         <?= actionLink('routes.php','+ Add Route','secondary-action',['new'=>1]) ?>
-        <?= actionLink('complaints.php','View Complaints','secondary-action') ?>
     </div>
 </section>
 
@@ -599,12 +530,11 @@ $openComplaintCount=(int)$complaintStats['open_total'];
 $metrics=[
  ['Registered passengers',$passengerCount,number_format((int)$passengerStats['students']).' students · '.number_format((int)$passengerStats['faculty']).' faculty'],
  ['Fleet in service',(int)$fleetStats['active_buses'],'of '.number_format((int)$fleetStats['total_buses']).' buses · '.number_format((int)$fleetStats['seat_capacity']).' seats · '.number_format((int)$fleetStats['standing_capacity']).' standing'],
- ['Active routes',(int)$routeStats['active_routes'],'avg fare ৳'.number_format((float)$routeStats['average_fare'],0)],
+ ['Active routes',(int)$routeStats['active_routes'],'avg fare ৳'.number_format(uniride_ticket_fare(),0)],
  ['Departures '.strtolower($dateContext),(int)$departureStats['departures'],$departureStats['next_departure']?'first departure '.timeLabel($departureStats['next_departure']):'Nothing scheduled for this date'],
  ['Bookings '.strtolower($dateContext),(int)$bookingStats['bookings'],'across '.number_format((int)$bookingStats['trips_with_bookings']).' trips'],
  ['Seat occupancy',$seatOccupancy.'%',number_format((int)$loadStats['booked_seats']).' / '.number_format((int)$capacityStats['seat_capacity']).' seats booked'],
  ['Standing usage',$standingUsage.'%',(int)$capacityStats['standing_capacity']>0?number_format((int)$loadStats['booked_standing']).' / '.number_format((int)$capacityStats['standing_capacity']).' slots used':'No standing capacity offered'],
- ['Open complaints',$openComplaintCount,number_format((int)$complaintStats['awaiting_response']).' awaiting response · '.number_format((int)$complaintStats['in_progress']).' in progress'],
 ];
 foreach($metrics as [$label,$value,$detail]): ?>
 <article class="metric-card"><p><?= uh($label) ?></p><strong><?= uh((string)$value) ?></strong><span><?= uh($detail) ?></span></article>
@@ -647,16 +577,12 @@ foreach($metrics as [$label,$value,$detail]): ?>
 <?php endif; ?>
 </section>
 
-<section class="split-section">
+<section>
 <article class="dashboard-section"><div class="section-heading-row"><div><p class="dashboard-kicker">Latest activity</p><h2>Recent bookings</h2></div><?= actionLink('bookings.php','View all') ?></div>
 <?php if(!$recentBookings): ?><div class="compact-empty compact-empty-small"><div><strong>No recent bookings.</strong><p>Bookings for your university will appear here.</p></div></div>
 <?php else: ?><div class="compact-list"><?php foreach($recentBookings as $b): ?><div class="booking-row"><div class="booking-main"><strong><?= uh($b['booking_reference']) ?></strong><span><?= uh($b['passenger_name']) ?> · <?= uh(ucfirst(strtolower($b['passenger_type']))) ?></span></div><div class="booking-route"><strong><?= uh($b['route_code']) ?></strong><span><?= uh(date('d M',strtotime($b['schedule_date']))) ?> · <?= uh(timeLabel($b['departure_time'])) ?></span></div><div class="booking-slot"><strong><?= uh(seatLabel($b)) ?></strong><span>৳<?= number_format((float)$b['fare_charged'],0) ?></span></div><span class="status-pill <?= uh(statusClass($b['status'])) ?>"><?= uh($b['status']) ?></span></div><?php endforeach; ?></div><?php endif; ?>
 </article>
 
-<article class="dashboard-section" id="complaints"><div class="section-heading-row"><div><p class="dashboard-kicker">Service</p><h2>Complaints requiring attention</h2></div><?= actionLink('complaints.php','View all') ?></div>
-<?php if(!$complaints): ?><div class="compact-empty compact-empty-small"><div><strong>Nothing awaiting action.</strong><p>Every complaint is resolved or closed.</p></div></div>
-<?php else: ?><div class="complaint-list"><?php foreach($complaints as $c): ?><details class="complaint-item"><summary><div><strong><?= uh($c['passenger_name']) ?></strong><span><?= uh($c['subject']) ?></span></div><div class="complaint-summary-meta"><span><?= uh(dateTimeLabel($c['submitted_at'])) ?></span><span class="status-pill <?= uh(statusClass($c['status'])) ?>"><?= uh($c['status']) ?></span></div></summary><div class="complaint-detail"><p><?= nl2br(uh($c['description'])) ?></p><form method="post" class="complaint-form"><input type="hidden" name="action" value="update_complaint"><input type="hidden" name="csrf_token" value="<?= uh($csrfToken) ?>"><input type="hidden" name="complaint_id" value="<?= (int)$c['complaint_id'] ?>"><label><span>Status</span><select name="status"><?php foreach(['OPEN','IN_PROGRESS','RESOLVED','CLOSED'] as $s): ?><option value="<?= uh($s) ?>" <?= $s===$c['status']?'selected':'' ?>><?= uh($s) ?></option><?php endforeach; ?></select></label><label class="complaint-response-field"><span>University response</span><textarea name="university_response" rows="3" placeholder="Add a short response for the passenger..."><?= uh($c['university_response']??'') ?></textarea></label><button class="small-dark-button" type="submit">Save update</button></form></div></details><?php endforeach; ?></div><?php endif; ?>
-</article>
 </section>
 
 <section class="split-section">
@@ -667,7 +593,7 @@ foreach($metrics as [$label,$value,$detail]): ?>
 
 <article class="dashboard-section"><div class="section-heading-row"><div><p class="dashboard-kicker">Demand</p><h2>Route utilisation</h2><p><?= uh($semesterName) ?> · all recorded trips</p></div><?= actionLink('routes.php','Manage') ?></div>
 <?php if(!$routeUtilisation): ?><div class="compact-empty compact-empty-small"><div><strong>No routes available.</strong><p>Active route performance will appear here.</p></div></div>
-<?php else: ?><div class="route-util-list"><?php foreach($routeUtilisation as $r): $ro=percentValue((int)$r['seated_booking_count'],(int)$r['seat_capacity_offered']); ?><div class="route-util-row"><div class="route-util-title"><strong><?= uh($r['route_code']) ?></strong><span><?= uh($r['route_name']) ?></span></div><div class="route-util-bar"><span style="width:<?= min(100,$ro) ?>%"></span></div><div class="route-util-meta"><span><?= (int)$r['trip_count'] ?> trips</span><span><?= (int)$r['booking_count'] ?> bookings</span><span><?= $ro ?>% avg seat use</span><span>৳<?= number_format((float)$r['fare'],0) ?></span></div></div><?php endforeach; ?></div><?php endif; ?>
+<?php else: ?><div class="route-util-list"><?php foreach($routeUtilisation as $r): $ro=percentValue((int)$r['seated_booking_count'],(int)$r['seat_capacity_offered']); ?><div class="route-util-row"><div class="route-util-title"><strong><?= uh($r['route_code']) ?></strong><span><?= uh($r['route_name']) ?></span></div><div class="route-util-bar"><span style="width:<?= min(100,$ro) ?>%"></span></div><div class="route-util-meta"><span><?= (int)$r['trip_count'] ?> trips</span><span><?= (int)$r['booking_count'] ?> bookings</span><span><?= $ro ?>% avg seat use</span><span>৳<?= number_format(uniride_ticket_fare(),0) ?></span></div></div><?php endforeach; ?></div><?php endif; ?>
 </article>
 </section>
 

@@ -466,7 +466,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <p>
             Students and faculty use Passenger. University transport admins use
-            Uni Admin. The central administrator uses Sys Admin.
+            Uni Admin. The central administrator uses System Admin.
         </p>
     </section>
 
@@ -506,7 +506,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 data-auth-tab="SYSTEM_ADMIN"
                 class="<?= $accountType === 'SYSTEM_ADMIN' ? 'active' : '' ?>"
             >
-                Sys Admin
+                System Admin
             </button>
         </div>
 

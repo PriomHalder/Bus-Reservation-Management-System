@@ -6,6 +6,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/booking-service.php';
 require_once __DIR__ . '/../includes/profile/session-management.php';
 
 if (empty($_SESSION['authenticated'])) {
@@ -235,7 +236,7 @@ if (u_table_exists($pdo, 'semesters') && u_column_exists($pdo, 'semesters', 'uni
         : [];
 }
 
-$uNavCounts = ['passengers'=>0,'students'=>0,'faculty'=>0,'buses'=>0,'routes'=>0,'complaints'=>0];
+$uNavCounts = ['passengers'=>0,'students'=>0,'faculty'=>0,'buses'=>0,'routes'=>0];
 try {
     $pc = u_one($pdo,
         "SELECT COUNT(DISTINCT passenger_id) passengers,
@@ -249,7 +250,6 @@ try {
     $uNavCounts['faculty']=(int)($pc['faculty']??0);
     $uNavCounts['buses']=(int)u_scalar($pdo,"SELECT COUNT(DISTINCT bus_id) FROM buses WHERE university_id=?",[$uUniversityId]);
     $uNavCounts['routes']=(int)u_scalar($pdo,"SELECT COUNT(DISTINCT route_id) FROM routes WHERE university_id=?",[$uUniversityId]);
-    $uNavCounts['complaints']=(int)u_scalar($pdo,"SELECT COUNT(DISTINCT complaint_id) FROM complaints WHERE university_id=? AND status IN ('OPEN','IN_PROGRESS')",[$uUniversityId]);
 } catch (Throwable $e) {
     error_log('[UniRide university context] ' . $e->getMessage());
 }

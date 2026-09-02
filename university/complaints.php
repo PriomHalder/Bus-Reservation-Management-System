@@ -1,22 +1,7 @@
 <?php
 declare(strict_types=1);
+
 require_once __DIR__ . '/_university_shell.php';
-if($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='update_complaint'){
-    if(!u_verify_csrf($_POST['csrf_token']??null)){u_flash('error','Your session expired. Please try again.');u_redirect('complaints.php');}
-    $id=(int)($_POST['complaint_id']??0);$newStatus=strtoupper((string)($_POST['status']??'OPEN'));$response=trim((string)($_POST['university_response']??''));
-    if(!in_array($newStatus,['OPEN','IN_PROGRESS','RESOLVED','CLOSED'],true)){u_flash('error','Invalid complaint status.');u_redirect('complaints.php');}
-    try{
-        $passengerId=(int)u_scalar($pdo,"SELECT passenger_id FROM complaints WHERE complaint_id=? AND university_id=?",[$id,$uUniversityId]);
-        $stmt=$pdo->prepare("UPDATE complaints SET status=?,university_response=?,updated_at=NOW() WHERE complaint_id=? AND university_id=?");$stmt->execute([$newStatus,$response!==''?$response:null,$id,$uUniversityId]);
-        if($stmt->rowCount()>0 && $passengerId>0 && u_table_exists($pdo,'notifications')){$n=$pdo->prepare("INSERT INTO notifications(passenger_id,title,message,notification_type,reference_id) VALUES (?,?,?,?,?)");$n->execute([$passengerId,'Complaint Update','Your transport complaint status is now '.$newStatus.'.','COMPLAINT',$id]);}
-        u_flash('success',$stmt->rowCount()?'Complaint updated.':'No complaint record was changed.');
-    }catch(Throwable $e){error_log('[UniRide complaint update] '.$e->getMessage());u_flash('error','The complaint could not be updated.');}
-    u_redirect('complaints.php');
-}
-$status=strtoupper((string)($_GET['status']??'ALL'));$allowed=['ALL','OPEN','IN_PROGRESS','RESOLVED','CLOSED'];if(!in_array($status,$allowed,true))$status='ALL';
-$sql="SELECT DISTINCT c.complaint_id,c.subject,c.description,c.status,c.university_response,c.submitted_at,c.updated_at,p.name passenger_name,p.email FROM complaints c JOIN passengers p ON p.passenger_id=c.passenger_id WHERE c.university_id=? AND p.university_id=?";$params=[$uUniversityId,$uUniversityId];if($status!=='ALL'){$sql.=" AND c.status=?";$params[]=$status;}$sql.=" ORDER BY CASE c.status WHEN 'OPEN' THEN 0 WHEN 'IN_PROGRESS' THEN 1 ELSE 2 END,c.submitted_at DESC LIMIT 200";$rows=u_all($pdo,$sql,$params);
-u_render_start('Complaints','complaints','Service','Review and respond to complaints submitted to this university.');u_render_heading_end();
-?>
-<div class="up-tabs"><?php foreach($allowed as $s): ?><a class="up-tab <?= $s===$status?'active':'' ?>" href="?status=<?= u_h($s) ?>"><?= u_h($s) ?></a><?php endforeach; ?></div>
-<?php if(!$rows): ?><div class="up-empty"><div><strong>No complaints in this view.</strong><p>Only complaints addressed to this university can appear here.</p></div></div><?php else: ?><div style="display:grid;gap:10px"><?php foreach($rows as $r): ?><details class="up-card"><summary style="cursor:pointer;display:flex;justify-content:space-between;gap:16px;align-items:center;list-style:none"><div><strong><?= u_h($r['passenger_name']) ?></strong><div style="color:#777d85;font-size:9px;margin-top:3px"><?= u_h($r['subject']) ?></div></div><div style="display:flex;gap:8px;align-items:center"><span style="color:#777d85;font-size:8px"><?= u_h(u_date($r['submitted_at'],'d M · g:i A')) ?></span><span class="up-status <?= u_h(u_status_class($r['status'])) ?>"><?= u_h($r['status']) ?></span></div></summary><div style="margin-top:14px;padding-top:14px;border-top:1px solid #e4e7eb"><p style="color:#555c64;font-size:9px;line-height:1.7"><?= nl2br(u_h($r['description'])) ?></p><form method="post" class="up-form-grid"><input type="hidden" name="csrf_token" value="<?= u_h(u_csrf()) ?>"><input type="hidden" name="action" value="update_complaint"><input type="hidden" name="complaint_id" value="<?= (int)$r['complaint_id'] ?>"><label class="up-field"><span>Status</span><select name="status"><?php foreach(['OPEN','IN_PROGRESS','RESOLVED','CLOSED'] as $s): ?><option value="<?= u_h($s) ?>" <?= $s===$r['status']?'selected':'' ?>><?= u_h($s) ?></option><?php endforeach; ?></select></label><label class="up-field wide"><span>University response</span><textarea name="university_response"><?= u_h($r['university_response']??'') ?></textarea></label><div class="up-form-actions"><button class="up-button" type="submit">Save Response</button></div></form></div></details><?php endforeach; ?></div><?php endif; ?>
-<?php u_render_end(); ?>
+
+header('Location: dashboard.php', true, 302);
+exit;
